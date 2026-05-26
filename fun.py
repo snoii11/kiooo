@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import pyjokes
 import random
-
+import datetime
 
 answers = [
     "Yes!", "No!", "Maybe...", "Definitely!", 
@@ -10,32 +10,36 @@ answers = [
     "Without a doubt!", "Very doubtful!"
 ]
 
-kio = 0xffec01
+# Advanced Futuristic Color Tokens
+COLOR_YELLOW = 0xFFFF00
+COLOR_CYAN = 0x00F0FF
 
 class Fun(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command("Joke")
+    @commands.command("joke")
     async def joke(self, ctx):
         joke = pyjokes.get_joke()
         embed = discord.Embed(
-            title="  <:kio:1508019650456322078>     |    Here's a joke for you!",
-            description= f"> {joke}",
-            color=kio
+            title="🤣 [ INCOMING TRANSMISSION: JOKE ]",
+            description=f"```prolog\n\"{joke}\"\n```",
+            color=COLOR_YELLOW
         )
-        embed.set_thumbnail(url=ctx.bot.user.avatar.url)
+        embed.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
+        embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await ctx.send(embed=embed)
 
     @commands.command(aliases=["8ball"])
     async def eightball(self, ctx, *, question):
         answer = random.choice(answers)
         embed = discord.Embed(
-            title="  <:eightball:1508028601495326782>     |    8-Ball",
-            description= f" -8ball says...`{answer}`\n ```diff\n- Note: The Magic 8-Ball's answers are random and for fun, don't take them seriously!``` \n > Tip: Wanna hear a joke? Use `k.joke` command!",
-            color=kio
+            title="🎱 [ QUANTUM PREDICTIVE ENGINE ]",
+            description=f"```yaml\nQUESTION: \"{question}\"\nRESPONSE: \"{answer}\"\n```\n> Tip: Wanna hear a joke? Use `k.joke` command!",
+            color=COLOR_YELLOW
         )
-        embed.set_thumbnail(url=ctx.bot.user.avatar.url)
+        embed.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
+        embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await ctx.send(embed=embed)
 
 async def setup(bot):

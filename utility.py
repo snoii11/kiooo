@@ -1,61 +1,85 @@
 import discord
 from discord.ext import commands
+import datetime
 
-kio = 0xffec01
-
+# Advanced Futuristic Color Tokens
+COLOR_YELLOW = 0xFFFF00
 
 class ServerInfoView(discord.ui.View):
-    def __init__(self, guild):
+    def __init__(self, guild, bot):
         super().__init__()
         self.guild = guild
+        self.bot = bot
 
     @discord.ui.select(
-        placeholder="Select an option",
+        placeholder="SELECT NETWORK METRIC...",
         options=[
-            discord.SelectOption(label="Admin's list", value="admins"),
-            discord.SelectOption(label="Boosters list", value="boosters"),
-            discord.SelectOption(label="emoji list", value="emojis"),
-            discord.SelectOption(label="Role list", value="roles")
+            discord.SelectOption(label="ADMINISTRATORS", value="admins", emoji="🛡️"),
+            discord.SelectOption(label="BOOSTERS", value="boosters", emoji="⚡"),
+            discord.SelectOption(label="EMOJI MANIFEST", value="emojis", emoji="🔮"),
+            discord.SelectOption(label="ROLE DIRECTORY", value="roles", emoji="🧬")
         ]
     )
     async def select_callback(self, interaction, select):
         await interaction.response.defer()
         if select.values[0] == "admins":
             admins = [member for member in self.guild.members if member.guild_permissions.administrator]
-            admins_list = "\n".join([admin.name for admin in admins]) if admins else "No administrators found."
+            if len(admins) > 80:
+                admins_list = "\n".join([f"✦ {admin.name}" for admin in admins[:80]]) + f"\n\n... and {len(admins) - 80} more administrators."
+            else:
+                admins_list = "\n".join([f"✦ {admin.name}" for admin in admins]) if admins else "No administrators found."
             embed = discord.Embed(
-                title=f"{self.guild.name}'s Administrators",
-                description=admins_list,
-                color=kio
+                title=f"🛡️ [ CORE ADMINISTRATORS ]",
+                description=f"```ini\n[SECTOR] {self.guild.name}\n[COUNT] {len(admins)} admin nodes\n```\n{admins_list}",
+                color=COLOR_YELLOW
             )
+            embed.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
+            embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
             await interaction.followup.send(embed=embed, ephemeral=True)
 
         elif select.values[0] == "boosters":
             boosters = [member for member in self.guild.members if member.premium_since]
-            boosters_list = "\n".join([booster.name for booster in boosters]) if boosters else "No boosters found."
+            if len(boosters) > 80:
+                boosters_list = "\n".join([f"✦ {booster.name}" for booster in boosters[:80]]) + f"\n\n... and {len(boosters) - 80} more boosters."
+            else:
+                boosters_list = "\n".join([f"✦ {booster.name}" for booster in boosters]) if boosters else "No boosters found."
             embed = discord.Embed(
-                title=f"{self.guild.name}'s Boosters",
-                description=boosters_list,
-                color=kio
+                title=f"⚡ [ SERVER SYSTEM AMPLIFIERS ]",
+                description=f"```ini\n[SECTOR] {self.guild.name}\n[COUNT] {len(boosters)} boosters\n```\n{boosters_list}",
+                color=COLOR_YELLOW
             )
+            embed.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
+            embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
             await interaction.followup.send(embed=embed, ephemeral=True)
 
         elif select.values[0] == "emojis":
-            emojis_list = "\n".join([emoji.name for emoji in self.guild.emojis]) if self.guild.emojis else "No emojis found."
+            emojis = self.guild.emojis
+            if len(emojis) > 80:
+                emojis_list = "\n".join([f"✦ :{emoji.name}:" for emoji in emojis[:80]]) + f"\n\n... and {len(emojis) - 80} more emojis."
+            else:
+                emojis_list = "\n".join([f"✦ :{emoji.name}:" for emoji in emojis]) if emojis else "No emojis found."
             embed = discord.Embed(
-                title=f"{self.guild.name}'s Emojis",
-                description=emojis_list,
-                color=kio
+                title=f"🔮 [ GUILD EMOJI MANIFEST ]",
+                description=f"```ini\n[SECTOR] {self.guild.name}\n[COUNT] {len(emojis)} custom emojis\n```\n{emojis_list}",
+                color=COLOR_YELLOW
             )
+            embed.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
+            embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
             await interaction.followup.send(embed=embed, ephemeral=True)
 
         elif select.values[0] == "roles":
-            roles_list = "\n".join([role.name for role in self.guild.roles]) if self.guild.roles else "No roles found."
+            roles = self.guild.roles
+            if len(roles) > 80:
+                roles_list = "\n".join([f"✦ {role.name}" for role in roles[:80]]) + f"\n\n... and {len(roles) - 80} more roles."
+            else:
+                roles_list = "\n".join([f"✦ {role.name}" for role in roles]) if roles else "No roles found."
             embed = discord.Embed(
-                title=f"{self.guild.name}'s Roles",
-                description=roles_list,
-                color=kio
+                title=f"🧬 [ SECURITY ROLE DIRECTORY ]",
+                description=f"```ini\n[SECTOR] {self.guild.name}\n[COUNT] {len(roles)} registered roles\n```\n{roles_list}",
+                color=COLOR_YELLOW
             )
+            embed.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
+            embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
             await interaction.followup.send(embed=embed, ephemeral=True)
 
 
@@ -64,41 +88,46 @@ class UserAvatarView(discord.ui.View):
         super().__init__()
         self.member = member
 
-    @discord.ui.button(label="Download Avatar", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="DOWNLOAD VECTOR DATA", style=discord.ButtonStyle.green, emoji="💾")
     async def download_avatar(self, interaction, button):
-        await interaction.response.send_message(f"[Click here to download]({self.member.avatar.url})", ephemeral=True)
+        await interaction.response.send_message(f"[Click here to download]({self.member.display_avatar.url})", ephemeral=True)
 
 class UserInfoView(discord.ui.View):
-    def __init__(self, member):
+    def __init__(self, member, bot):
         super().__init__()
         self.member = member
+        self.bot = bot
 
     @discord.ui.select(
-        placeholder="Select an option",
+        placeholder="CHOOSE USER READOUT...",
         options=[
-            discord.SelectOption(label="User's Permissions", value="permissions"),
-            discord.SelectOption(label="Badges", value="badges"),
+            discord.SelectOption(label="PERMISSIONS MATRIX", value="permissions", emoji="🛡️"),
+            discord.SelectOption(label="SECTOR BADGES", value="badges", emoji="🎖️"),
         ]
     )
     async def select_callback(self, interaction, select):
         await interaction.response.defer()
         if select.values[0] == "permissions":
             permissions = self.member.guild_permissions
-            permissions_list = [perm for perm, value in permissions if value]
+            permissions_list = [perm.replace('_', ' ').upper() for perm, value in permissions if value]
+            permissions_formatted = "\n".join(f"✦ {perm}" for perm in permissions_list) if permissions_list else "No permissions detected."
             embed = discord.Embed(
-                title=f"{self.member}'s Permissions",
-                description="\n".join(permissions_list) if permissions_list else "No permissions",
-                color=0xffec01
+                title=f"🛡️ [ PERMISSIONS MATRIX: {self.member.name} ]",
+                description=f"```prolog\n[NODENAME] {self.member}\n[MATRIX OVERVIEW]\n```\n{permissions_formatted}",
+                color=COLOR_YELLOW
             )
+            embed.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
+            embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
             await interaction.followup.send(embed=embed, ephemeral=True)
-
 
         elif select.values[0] == "badges":
             embed = discord.Embed(
-            title="Badges",
-            description="```diff\n- No badges yet!```\n > Tip: Badges system coming soon!",
-            color=kio
-    )
+                title="🎖️ [ SECTOR BADGES ]",
+                description="```diff\n- ERROR: Badging sub-routine offline.\n> Tip: Badge records system coming soon!\n```",
+                color=COLOR_YELLOW
+            )
+            embed.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
+            embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
             await interaction.followup.send(embed=embed, ephemeral=True)
 
 class Utility(commands.Cog):
@@ -106,74 +135,80 @@ class Utility(commands.Cog):
         self.bot = bot
 
 
-    @commands.command(aliases=["userinfo", "Userinfo", "Ui"])
+    @commands.command(aliases=["userinfo"])
     async def ui(self, ctx, member: discord.Member = None):
         if member is None:
             member = ctx.author
-        view = UserInfoView(member)
+        view = UserInfoView(member, self.bot)
 
         embed = discord.Embed(
-            title=f"{member}'s Information",
-            color=0xffec01
+            title=f"❖ [ USER DIAGNOSTICS: {member.name} ] ❖",
+            color=COLOR_YELLOW
         )
-        embed.set_thumbnail(url=member.avatar.url)
-        embed.add_field(name="Username", value=member.name, inline=True)
-        embed.add_field(name="Discriminator", value=member.discriminator, inline=True)
-        embed.add_field(name="ID", value=member.id, inline=False)
-        embed.add_field(name="Joined Server At", value=member.joined_at.strftime("%Y-%m-%d %H:%M:%S"), inline=False)
-        embed.add_field(name="Account Created At", value=member.created_at.strftime("%Y-%m-%d %H:%M:%S"), inline=False)
-        embed.set_thumbnail(url=member.avatar.url)
+        embed.add_field(name="🧬 USER IDENTIFIER", value=f"`{member.name}`", inline=True)
+        embed.add_field(name="🆔 SYSTEM ID", value=f"`{member.id}`", inline=True)
+        
+        joined_str = member.joined_at.strftime("%Y-%m-%d %H:%M:%S") if member.joined_at else "UNKNOWN"
+        created_str = member.created_at.strftime("%Y-%m-%d %H:%M:%S") if member.created_at else "UNKNOWN"
+        
+        embed.add_field(name="📅 SERVER OVERLINK ESTABLISHED", value=f"`{joined_str}`", inline=False)
+        embed.add_field(name="⏳ ACCOUNT ORIGIN TIME", value=f"`{created_str}`", inline=False)
+        embed.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
+        embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await ctx.send(embed=embed, view=view)
 
 
-
-    @commands.command(aliases=["av", "Avatar", "AV", "Av"])
+    @commands.command(aliases=["av"])
     async def avatar(self, ctx, member: discord.Member = None):
         if member is None:
             member = ctx.author
         view = UserAvatarView(member)
         embed = discord.Embed(
-            title=f"{member}'s Avatar",
-            color=0xffec01
+            title=f"🖼️ [ VISUAL AVATAR DATA: {member.name} ]",
+            color=COLOR_YELLOW
         )
-        embed.set_image(url=member.avatar.url)
+        embed.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
+        embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await ctx.send(embed=embed, view=view)
 
-    @commands.command(aliases=["si", "Serverinfo", "Si"])
+    @commands.command(aliases=["si"])
     async def serverinfo(self, ctx):
         try:
-            view = ServerInfoView(ctx.guild)
+            view = ServerInfoView(ctx.guild, self.bot)
             guild = ctx.guild
-            guild_icon = guild.icon.url if guild.icon else self.bot.user.avatar.url
+            guild_icon = guild.icon.url if guild.icon else self.bot.user.display_avatar.url
             embed = discord.Embed(
-                title=f"{guild.name}'s Information",
-                color=0xffec01
+                title=f"🪐 [ GUILD SYSTEM MANIFEST: {guild.name} ]",
+                color=COLOR_YELLOW
             )
-            embed.set_thumbnail(url=guild_icon)
-            embed.add_field(name="Server Name", value=guild.name, inline=True)
-            embed.add_field(name="Server ID", value=guild.id, inline=True)
-            embed.add_field(name="Owner", value=guild.owner.name if guild.owner else "Unknown", inline=False)
-            embed.add_field(name="Member Count", value=guild.member_count, inline=False)
-            embed.set_thumbnail(url=guild_icon)
+            embed.add_field(name="🌌 GUILD CODENAME", value=f"`{guild.name}`", inline=True)
+            embed.add_field(name="🆔 REGISTRY ID", value=f"`{guild.id}`", inline=True)
+            embed.add_field(name="👑 SECTOR FOUNDER", value=f"`{guild.owner.name if guild.owner else 'UnknownOwner'}`", inline=False)
+            embed.add_field(name="👥 POPULATION METRIC", value=f"`{guild.member_count} active nodes`", inline=False)
+            embed.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
+            embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
             await ctx.send(embed=embed, view=view)
         except Exception as e:
             print(f"Error in serverinfo command: {e}")
             embed = discord.Embed(
-                title="Error",
-                description="An error occurred while fetching server information.",
-                color=discord.Color.red()
+                title="❌ [ OPERATIONAL ERROR ]",
+                description=f"```diff\n- ERROR: Failed to compile sector metrics.\n- DETAILS: {e}\n```",
+                color=COLOR_YELLOW
             )
+            embed.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
+            embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
             await ctx.send(embed=embed)
 
 
-    @commands.command(aliases=["Ping"])
+    @commands.command()
     async def ping(self, ctx):
         embed = discord.Embed(
-            title=" 🏓 Pong!",
-            description=f" <:kio_ping:1508049489376710696> Latency: {round(self.bot.latency * 1000)}ms",
-            color=kio
+            title="🏓 [ NETWORK PING TRACE ]",
+            description=f"```yaml\nCONNECTION: Active\nLATENCY: {round(self.bot.latency * 1000)} ms\nDIAGNOSTICS: Nominal\n```",
+            color=COLOR_YELLOW
         )
-        embed.set_thumbnail(url=ctx.bot.user.avatar.url)
+        embed.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
+        embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await ctx.send(embed=embed)
 
 async def setup(bot):
