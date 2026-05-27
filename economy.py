@@ -4,6 +4,7 @@ from discord import app_commands
 import datetime
 import random
 
+# ── Shop (tools + consumables) ──
 SHOP_ITEMS = {
     "basic/pickaxe": {"name": "Basic Pickaxe", "price": 500, "durability": 100, "tool_type": "pickaxe"},
     "iron/pickaxe": {"name": "Iron Pickaxe", "price": 2000, "durability": 300, "tool_type": "pickaxe"},
@@ -17,20 +18,47 @@ SHOP_ITEMS = {
     "repair_kit": {"name": "Repair Kit", "price": 1000},
 }
 
-TOOL_DURABILITY_COST = {
-    "Basic": 2,
-    "Iron": 1,
-    "Golden": 1,
-}
-
-TOOL_EARNINGS = {
-    "Basic": (20, 40),
-    "Iron": (40, 80),
-    "Golden": (80, 150),
-}
-
+TOOL_DURABILITY_COST = {"Basic": 2, "Iron": 1, "Golden": 1}
 QUALITY_LABELS = {"Basic": "🟢 Basic", "Iron": "🟠 Iron", "Golden": "🟡 Gold"}
 
+# ── Collectible Items ──
+ITEMS = {
+    "stone": {"name": "Stone", "sell": 5, "tier": "basic", "type": "mining"},
+    "coal": {"name": "Coal", "sell": 10, "tier": "basic", "type": "mining"},
+    "copper": {"name": "Copper Ore", "sell": 15, "tier": "basic", "type": "mining"},
+    "iron_ore": {"name": "Iron Ore", "sell": 25, "tier": "iron", "type": "mining"},
+    "gold_ore": {"name": "Gold Ore", "sell": 40, "tier": "iron", "type": "mining"},
+    "silver_ore": {"name": "Silver Ore", "sell": 35, "tier": "iron", "type": "mining"},
+    "diamond": {"name": "Diamond", "sell": 100, "tier": "gold", "type": "mining"},
+    "emerald": {"name": "Emerald", "sell": 80, "tier": "gold", "type": "mining"},
+    "ruby": {"name": "Ruby", "sell": 90, "tier": "gold", "type": "mining"},
+    "wheat": {"name": "Wheat", "sell": 5, "tier": "basic", "type": "farming"},
+    "carrot": {"name": "Carrot", "sell": 8, "tier": "basic", "type": "farming"},
+    "potato": {"name": "Potato", "sell": 7, "tier": "basic", "type": "farming"},
+    "tomato": {"name": "Tomato", "sell": 15, "tier": "iron", "type": "farming"},
+    "pumpkin": {"name": "Pumpkin", "sell": 20, "tier": "iron", "type": "farming"},
+    "melon": {"name": "Melon", "sell": 18, "tier": "iron", "type": "farming"},
+    "golden_wheat": {"name": "Golden Wheat", "sell": 50, "tier": "gold", "type": "farming"},
+    "magic_berry": {"name": "Magic Berry", "sell": 65, "tier": "gold", "type": "farming"},
+    "star_fruit": {"name": "Star Fruit", "sell": 75, "tier": "gold", "type": "farming"},
+    "salmon": {"name": "Salmon", "sell": 8, "tier": "basic", "type": "fishing"},
+    "cod": {"name": "Cod", "sell": 6, "tier": "basic", "type": "fishing"},
+    "trout": {"name": "Trout", "sell": 10, "tier": "basic", "type": "fishing"},
+    "tuna": {"name": "Tuna", "sell": 20, "tier": "iron", "type": "fishing"},
+    "bass": {"name": "Bass", "sell": 25, "tier": "iron", "type": "fishing"},
+    "mackerel": {"name": "Mackerel", "sell": 22, "tier": "iron", "type": "fishing"},
+    "legendary_fish": {"name": "Legendary Fish", "sell": 80, "tier": "gold", "type": "fishing"},
+    "pearl": {"name": "Pearl", "sell": 70, "tier": "gold", "type": "fishing"},
+    "treasure_map": {"name": "Treasure Map", "sell": 95, "tier": "gold", "type": "fishing"},
+}
+
+ITEM_POOLS = {
+    "pickaxe": {"basic": ["stone", "coal", "copper"], "iron": ["iron_ore", "gold_ore", "silver_ore"], "gold": ["diamond", "emerald", "ruby"]},
+    "farming_tool": {"basic": ["wheat", "carrot", "potato"], "iron": ["tomato", "pumpkin", "melon"], "gold": ["golden_wheat", "magic_berry", "star_fruit"]},
+    "fishing_rod": {"basic": ["salmon", "cod", "trout"], "iron": ["tuna", "bass", "mackerel"], "gold": ["legendary_fish", "pearl", "treasure_map"]},
+}
+
+import random
 COLOR_YELLOW = 0xFFFF00
 
 
@@ -95,6 +123,7 @@ class Economy(commands.Cog):
                 "last_rob": None,
                 "inventory": {"farming_tool": None, "pickaxe": None, "fishing_rod": None},
                 "repair_kits": 0,
+                "items": {},
                 "created_at": datetime.datetime.now(datetime.timezone.utc)
             }
             if collection is not None:
@@ -134,7 +163,7 @@ class Economy(commands.Cog):
     def tool_emoji(self, tool_type):
         return {"pickaxe": "⛏️", "farming_tool": "🌾", "fishing_rod": "🎣"}.get(tool_type, "🛠️")
 
-    async def use_tool(self, interaction, tool_type, action_name):
+    async def use_tool(self, interaction, tool_type, action_name, emoji):
         collection = self.get_collection()
         if collection is None:
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
@@ -146,15 +175,12 @@ class Economy(commands.Cog):
         if tool is None:
             return await self.send(interaction, "❌ [ NO TOOL ]",
                 f"```yaml\nERROR: You don't own a {action_name} tool.\nBuy one with /buy\n```")
-
         if tool["durability"] <= 0:
             return await self.send(interaction, "❌ [ TOOL BROKEN ]",
                 f"```yaml\nERROR: Your {tool['name']} is broken.\nUse /repair to fix it.\n```")
 
         quality = self.get_quality(tool["name"])
-        earned = random.randint(*TOOL_EARNINGS[quality])
         dur_cost = TOOL_DURABILITY_COST[quality]
-
         new_durability = tool["durability"] - dur_cost
         broken = False
 
@@ -166,16 +192,34 @@ class Economy(commands.Cog):
             tool["durability"] = new_durability
             dur_display = new_durability
 
-        new_balance = profile.get("balance", 0) + earned
+        # Drop a collectible item
+        pool = ITEM_POOLS.get(tool_type, {}).get(quality.lower(), ["stone"])
+        item_key = random.choice(pool)
+        item_data = ITEMS[item_key]
+        quantity = random.randint(1, 3)
+
+        items = profile.get("items", {})
+        items[item_key] = items.get(item_key, 0) + quantity
+
+        # Small bonus KKD
+        kkd = random.randint(5, 20)
+        new_balance = profile.get("balance", 0) + kkd
 
         await self.update_profile(interaction.user.id,
-            update_data={"balance": new_balance, "inventory": inventory})
+            update_data={"balance": new_balance, "inventory": inventory, "items": items})
 
-        emoji = self.tool_emoji(tool_type)
-        msg = f"```yaml\nEARNED: {earned} KioKreds\nTOOL: {tool['name']} ({dur_display} durability)\nTOTAL BALANCE: {new_balance} KioKreds\n```"
+        lines = [
+            f"EARNED: {kkd} KioKreds",
+            f"FOUND: {quantity}x {item_data['name']}",
+            f"TOOL: {tool['name']} ({dur_display} durability)",
+        ]
+        msg = "```yaml\n" + "\n".join(lines) + "\n```"
         if broken:
             msg += "\n⚠️ Your tool broke and was removed from inventory!"
-        await self.send(interaction, f"{emoji} [ {action_name.upper()} ]", msg)
+
+        await self.send(interaction, f"{emoji} [ {action_name.upper()} RESULT ]", msg)
+
+    # ── Work ──
 
     @app_commands.command(name="work", description="Work to earn KioKreds")
     async def work(self, interaction: discord.Interaction):
@@ -204,17 +248,21 @@ class Economy(commands.Cog):
         await self.send(interaction, "💼 [ WORK SHIFT COMPLETED ]",
             f"```yaml\nEARNED: {earned} KioKreds\nTOTAL BALANCE: {new_balance} KioKreds\nWORK SHIFTS COMPLETED: {work_count}\n```")
 
-    @app_commands.command(name="mine", description="Mine with your pickaxe to earn KioKreds")
+    # ── Gathering Commands ──
+
+    @app_commands.command(name="mine", description="Mine with your pickaxe to find ores and gems")
     async def mine(self, interaction: discord.Interaction):
-        await self.use_tool(interaction, "pickaxe", "Mining")
+        await self.use_tool(interaction, "pickaxe", "Mining", "⛏️")
 
-    @app_commands.command(name="fish", description="Fish with your fishing rod to earn KioKreds")
+    @app_commands.command(name="fish", description="Fish with your rod to catch fish and treasures")
     async def fish(self, interaction: discord.Interaction):
-        await self.use_tool(interaction, "fishing_rod", "Fishing")
+        await self.use_tool(interaction, "fishing_rod", "Fishing", "🎣")
 
-    @app_commands.command(name="harvest", description="Harvest with your hoe to earn KioKreds")
+    @app_commands.command(name="harvest", description="Harvest with your hoe to gather crops")
     async def harvest(self, interaction: discord.Interaction):
-        await self.use_tool(interaction, "farming_tool", "Harvest")
+        await self.use_tool(interaction, "farming_tool", "Harvest", "🌾")
+
+    # ── Balance ──
 
     @app_commands.command(name="balance", description="Check your or someone else's balance")
     @app_commands.describe(member="The member to check (defaults to you)")
@@ -222,18 +270,14 @@ class Economy(commands.Cog):
         collection = self.get_collection()
         if collection is None:
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
-
         if member is None:
             member = interaction.user
 
         profile = await self.ensure_profile(member)
-        balance = profile.get("balance", 0)
-        work_count = profile.get("work_count", 0)
-        last_work = self.parse_dt(profile.get("last_work"))
-        last_work_str = last_work.strftime("%Y-%m-%d %H:%M:%S UTC") if last_work else "Never"
-
         await self.send(interaction, f"💰 [ BALANCE PROFILE: {member.display_name} ]",
-            f"```ini\nBALANCE: {balance} KioKreds\nWORK SHIFTS: {work_count}\nLAST WORK: {last_work_str}\n```")
+            f"```ini\nBALANCE: {profile.get('balance', 0)} KioKreds\nWORK SHIFTS: {profile.get('work_count', 0)}\nLAST WORK: {(self.parse_dt(profile.get('last_work')) or 'Never')}\n```")
+
+    # ── Daily ──
 
     @app_commands.command(name="daily", description="Claim your daily reward")
     async def daily(self, interaction: discord.Interaction):
@@ -257,9 +301,10 @@ class Economy(commands.Cog):
         new_balance = profile.get("balance", 0) + reward
         await self.update_profile(interaction.user.id,
             update_data={"balance": new_balance, "last_daily": now})
-
         await self.send(interaction, "🎁 [ DAILY REWARD CLAIMED ]",
             f"```yaml\nDAILY REWARD: {reward} KioKreds\nTOTAL BALANCE: {new_balance} KioKreds\n```")
+
+    # ── Leaderboard ──
 
     @app_commands.command(name="leaderboard", description="View the economy leaderboard")
     async def leaderboard(self, interaction: discord.Interaction):
@@ -282,46 +327,87 @@ class Economy(commands.Cog):
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await interaction.response.send_message(embed=e, view=LeaderboardView(top, self.bot))
 
-    @app_commands.command(name="inventory", description="View your tools and repair kits")
-    async def inventory(self, interaction: discord.Interaction):
+    # ── Inventory ──
+
+    @app_commands.command(name="inventory", description="View your tools and collected items")
+    @app_commands.describe(category="Filter by category (all, mining, farming, fishing)")
+    @app_commands.choices(category=[
+        app_commands.Choice(name="All", value="all"),
+        app_commands.Choice(name="⛏️ Mining", value="mining"),
+        app_commands.Choice(name="🌾 Farming", value="farming"),
+        app_commands.Choice(name="🎣 Fishing", value="fishing"),
+    ])
+    async def inventory(self, interaction: discord.Interaction, category: str = "all"):
         collection = self.get_collection()
         if collection is None:
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
 
         profile = await self.ensure_profile(interaction.user)
         inventory = profile.get("inventory", {})
+        items = profile.get("items", {})
         kits = profile.get("repair_kits", 0)
 
-        lines = []
+        # Tools
+        tool_lines = []
         for key, label in [("pickaxe", "Pickaxe"), ("farming_tool", "Hoe"), ("fishing_rod", "Fishing Rod")]:
-            tool = inventory.get(key)
-            if tool:
-                quality = self.get_quality(tool["name"])
-                tag = QUALITY_LABELS.get(quality, quality)
-                lines.append(f"✦ {tag} {label} — {tool['durability']} durability")
+            t = inventory.get(key)
+            if t:
+                q = self.get_quality(t["name"])
+                tag = QUALITY_LABELS.get(q, q)
+                tool_lines.append(f"✦ {tag} {label} — {t['durability']} durability")
             else:
-                lines.append(f"✦ Empty slot ({label})")
+                tool_lines.append(f"✦ Empty ({label})")
 
-        desc = "```ini\n[TOOLS]\n```\n" + "\n".join(lines) + f"\n\n```ini\n[CONSUMABLES]\n```\n✦ Repair Kits: **{kits}**"
+        # Items
+        item_lines = []
+        total_value = 0
+        for ik, qty in sorted(items.items()):
+            if qty < 1:
+                continue
+            data = ITEMS.get(ik)
+            if not data:
+                continue
+            if category != "all" and data["type"] != category:
+                continue
+            value = data["sell"] * qty
+            total_value += value
+            item_lines.append(f"✦ {qty}x {data['name']} — {data['sell']} KKD each (total: {value} KKD)")
+
+        if category == "all":
+            total_all = sum(ITEMS[ik]["sell"] * qty for ik, qty in items.items() if ik in ITEMS)
+            desc = f"```ini\n[TOOLS]\n```\n" + "\n".join(tool_lines)
+            desc += f"\n\n```ini\n[CONSUMABLES]\n```\n✦ Repair Kits: **{kits}**"
+            if item_lines:
+                desc += f"\n\n```ini\n[COLLECTED ITEMS — Total Value: {total_all} KKD]\n```\n" + "\n".join(item_lines)
+            else:
+                desc += "\n\nNo items collected yet. Use /mine, /fish, or /harvest!"
+        else:
+            if item_lines:
+                desc = f"**Collected Items ({category}) — Total Value: {total_value} KKD**\n\n" + "\n".join(item_lines)
+            else:
+                desc = f"No {category} items yet."
+
         await self.send(interaction, f"🎒 [ INVENTORY: {interaction.user.display_name} ]", desc)
+
+    # ── Shop & Buy ──
 
     @app_commands.command(name="shop", description="View the Kio shop")
     async def shop(self, interaction: discord.Interaction):
         await self.send(interaction, "🛒 [ KIO SHOP ]",
             "Welcome to the Kio Shop! Here you can spend your KioKreds on various items."
-            "\n\n**Available Items: For fishing**\n"
-            "1. **Basic Fishing Rod** - 500 KKD (100 durability, +50-100 KKD per catch)\n"
-            "2. **Iron Fishing Rod** - 2000 KKD (300 durability, +100-200 KKD per catch)\n"
-            "3. **Golden Fishing Rod** - 5000 KKD (500 durability, +200-400 KKD per catch)\n"
-            "\n**Available Items: For farming**\n"
-            "1. **Basic Hoe** - 500 KKD (100 durability, +50-100 KKD per harvest)\n"
-            "2. **Iron Hoe** - 2000 KKD (300 durability, +100-200 KKD per harvest)\n"
-            "3. **Golden Hoe** - 5000 KKD (500 durability, +200-400 KKD per harvest)\n"
-            "\n**Available Items: For mining**\n"
-            "1. **Basic Pickaxe** - 500 KKD (100 durability, +50-100 KKD per mine)\n"
-            "2. **Iron Pickaxe** - 2000 KKD (300 durability, +100-200 KKD per mine)\n"
-            "3. **Golden Pickaxe** - 5000 KKD (500 durability, +200-400 KKD per mine)\n"
-            "\n**Consumables**\n"
+            "\n\n**🎣 Fishing Rods**\n"
+            "1. **Basic Fishing Rod** - 500 KKD (100 durability)\n"
+            "2. **Iron Fishing Rod** - 2000 KKD (300 durability)\n"
+            "3. **Golden Fishing Rod** - 5000 KKD (500 durability)\n"
+            "\n**🌾 Hoes**\n"
+            "1. **Basic Hoe** - 500 KKD (100 durability)\n"
+            "2. **Iron Hoe** - 2000 KKD (300 durability)\n"
+            "3. **Golden Hoe** - 5000 KKD (500 durability)\n"
+            "\n**⛏️ Pickaxes**\n"
+            "1. **Basic Pickaxe** - 500 KKD (100 durability)\n"
+            "2. **Iron Pickaxe** - 2000 KKD (300 durability)\n"
+            "3. **Golden Pickaxe** - 5000 KKD (500 durability)\n"
+            "\n**🧰 Consumables**\n"
             "1. **Repair Kit** — 1,000 KKD (repairs +50 durability to all your tools)\n")
 
     @app_commands.command(name="buy", description="Buy an item from the shop")
@@ -359,26 +445,24 @@ class Economy(commands.Cog):
 
         item_data = SHOP_ITEMS[item]
         price = item_data["price"]
-        inventory = profile.get("inventory", {})
-        tool_type = item_data["tool_type"]
+        inv = profile.get("inventory", {})
+        tt = item_data["tool_type"]
 
-        if inventory.get(tool_type) is not None:
-            existing = inventory[tool_type]
+        if inv.get(tt) is not None:
+            existing = inv[tt]
             return await self.send(interaction, "❌ [ ITEM ALREADY OWNED ]",
-                f"```yaml\nYou already own: {existing['name']}\nCurrent Durability: {existing['durability']}\n\nTools are not stackable. Use or sell your current item first.\n```")
-
+                f"```yaml\nYou already own: {existing['name']}\nCurrent Durability: {existing['durability']}\n```")
         if balance < price:
             return await self.send(interaction, "❌ [ INSUFFICIENT BALANCE ]",
                 f"```yaml\nPrice: {price} KioKreds\nYour Balance: {balance} KioKreds\nShortfall: {price - balance} KioKreds\n```")
 
-        new_balance = balance - price
-        inventory[tool_type] = {"name": item_data["name"], "durability": item_data["durability"]}
-
+        inv[tt] = {"name": item_data["name"], "durability": item_data["durability"]}
         await self.update_profile(interaction.user.id,
-            update_data={"balance": new_balance, "inventory": inventory})
-
+            update_data={"balance": balance - price, "inventory": inv})
         await self.send(interaction, "✅ [ PURCHASE SUCCESSFUL ]",
-            f"```yaml\nItem: {item_data['name']}\nPrice: {price} KioKreds\nNew Balance: {new_balance} KioKreds\nDurability: {item_data['durability']}\n```")
+            f"```yaml\nItem: {item_data['name']}\nPrice: {price} KioKreds\nNew Balance: {balance - price} KioKreds\nDurability: {item_data['durability']}\n```")
+
+    # ── Repair ──
 
     @app_commands.command(name="repair", description="Use a Repair Kit to add +50 durability to all your tools")
     async def repair(self, interaction: discord.Interaction):
@@ -387,29 +471,96 @@ class Economy(commands.Cog):
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
 
         profile = await self.ensure_profile(interaction.user)
-        kits = profile.get("repair_kits", 0)
-        if kits < 1:
+        if profile.get("repair_kits", 0) < 1:
             return await self.send(interaction, "❌ [ NO REPAIR KITS ]",
-                "```yaml\nERROR: You don't have any Repair Kits.\nBuy one with /buy item:repair_kit\n```")
+                "```yaml\nERROR: You don't have any Repair Kits.\nBuy one with /buy\n```")
 
-        inventory = profile.get("inventory", {})
+        inv = profile.get("inventory", {})
         repaired = []
         for key in ("pickaxe", "farming_tool", "fishing_rod"):
-            tool = inventory.get(key)
-            if tool is not None:
-                tool["durability"] += 50
-                repaired.append(tool["name"])
+            t = inv.get(key)
+            if t is not None:
+                t["durability"] += 50
+                repaired.append(t["name"])
 
         if not repaired:
             return await self.send(interaction, "❌ [ NO TOOLS TO REPAIR ]",
                 "```yaml\nERROR: You don't own any tools to repair.\n```")
 
         await self.update_profile(interaction.user.id,
-            update_data={"inventory": inventory},
+            update_data={"inventory": inv},
             inc_data={"repair_kits": -1})
 
         await self.send(interaction, "🔧 [ REPAIR COMPLETE ]",
             f"```yaml\nKITS USED: 1\nTOOLS REPAIRED (+50 durability):\n" + "\n".join(f"✦ {t}" for t in repaired) + "\n```")
+
+    # ── Sell ──
+
+    @app_commands.command(name="sell", description="Sell collected items from your inventory")
+    @app_commands.describe(item="Item to sell (or 'all' to sell everything)")
+    async def sell(self, interaction: discord.Interaction, item: str = "all"):
+        collection = self.get_collection()
+        if collection is None:
+            return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
+
+        profile = await self.ensure_profile(interaction.user)
+        items = profile.get("items", {})
+
+        if not items or all(q < 1 for q in items.values()):
+            return await self.send(interaction, "📭 [ EMPTY INVENTORY ]", "```yaml\nERROR: You have no items to sell.\n```")
+
+        item = item.strip().lower()
+        balance = profile.get("balance", 0)
+
+        if item == "all":
+            total = 0
+            sold = []
+            for ik, qty in list(items.items()):
+                if qty < 1:
+                    continue
+                data = ITEMS.get(ik)
+                if not data:
+                    continue
+                value = data["sell"] * qty
+                total += value
+                sold.append(f"✦ {qty}x {data['name']} — {value} KKD")
+                items[ik] = 0
+
+            if total == 0:
+                return await self.send(interaction, "📭 [ NOTHING TO SELL ]", "```yaml\nERROR: No sellable items found.\n```")
+
+            await self.update_profile(interaction.user.id,
+                update_data={"balance": balance + total, "items": items})
+            await self.send(interaction, "💰 [ BULK SALE COMPLETE ]",
+                f"```yaml\nTOTAL EARNED: {total} KioKreds\nNEW BALANCE: {balance + total} KioKreds\n```\n" + "\n".join(sold))
+
+        else:
+            # Try to find the item
+            matched = None
+            for ik, data in ITEMS.items():
+                if ik == item or data["name"].lower() == item:
+                    matched = ik
+                    break
+
+            if matched is None:
+                return await self.send(interaction, "❌ [ ITEM NOT FOUND ]",
+                    f"```yaml\nERROR: No item named '{item}'.\nCheck /inventory for your items.\n```")
+
+            qty = items.get(matched, 0)
+            if qty < 1:
+                return await self.send(interaction, "❌ [ NOT OWNED ]",
+                    f"```yaml\nERROR: You don't have any {ITEMS[matched]['name']} to sell.\n```")
+
+            data = ITEMS[matched]
+            value = data["sell"] * qty
+            items[matched] = 0
+
+            await self.update_profile(interaction.user.id,
+                update_data={"balance": balance + value, "items": items})
+            await self.send(interaction, "💰 [ ITEM SOLD ]",
+                f"```yaml\nITEM: {qty}x {data['name']}\nEARNED: {value} KioKreds\nNEW BALANCE: {balance + value} KioKreds\n```")
+
+    # ── Gamble ──
 
     @app_commands.command(name="gamble", description="Bet on 50/50 — double or nothing")
     @app_commands.describe(amount="Amount of KioKreds to bet")
@@ -417,29 +568,27 @@ class Economy(commands.Cog):
         collection = self.get_collection()
         if collection is None:
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
-
         if amount < 10:
             return await self.send(interaction, "❌ [ MINIMUM BET ]", "```yaml\nERROR: Minimum bet is 10 KioKreds.\n```")
 
         profile = await self.ensure_profile(interaction.user)
         balance = profile.get("balance", 0)
-
         if amount > balance:
             return await self.send(interaction, "❌ [ INSUFFICIENT BALANCE ]",
                 f"```yaml\nYour Balance: {balance} KioKreds\nBet Amount: {amount} KioKreds\n```")
 
         if random.random() < 0.5:
             new_balance = balance + amount
-            await self.update_profile(interaction.user.id,
-                update_data={"balance": new_balance})
+            await self.update_profile(interaction.user.id, update_data={"balance": new_balance})
             await self.send(interaction, "🎲 [ GAMBLE — YOU WIN! ]",
                 f"```yaml\nBET: {amount} KioKreds\nRESULT: You doubled your bet!\nNEW BALANCE: {new_balance} KioKreds\n```")
         else:
             new_balance = balance - amount
-            await self.update_profile(interaction.user.id,
-                update_data={"balance": new_balance})
+            await self.update_profile(interaction.user.id, update_data={"balance": new_balance})
             await self.send(interaction, "🎲 [ GAMBLE — YOU LOST ]",
                 f"```yaml\nBET: {amount} KioKreds\nRESULT: You lost the bet.\nNEW BALANCE: {new_balance} KioKreds\n```")
+
+    # ── Rob ──
 
     @app_commands.command(name="rob", description="Try to rob another user")
     @app_commands.describe(target="The user to rob")
@@ -453,16 +602,14 @@ class Economy(commands.Cog):
 
         profile = await self.ensure_profile(interaction.user)
         target_profile = await self.ensure_profile(target)
-
         balance = profile.get("balance", 0)
         target_balance = target_profile.get("balance", 0)
 
         if balance < 50:
             return await self.send(interaction, "❌ [ POOR ]", "```yaml\nERROR: You need at least 50 KioKreds to attempt a robbery.\n```")
-
         if target_balance < 50:
             return await self.send(interaction, "❌ [ TARGET TOO POOR ]",
-                f"```yaml\nERROR: {target.display_name} has less than 50 KioKreds. Not worth it.\n```")
+                f"```yaml\nERROR: {target.display_name} has less than 50 KioKreds.\n```")
 
         now = datetime.datetime.now(datetime.timezone.utc)
         last_rob = self.parse_dt(profile.get("last_rob"))
@@ -479,26 +626,24 @@ class Economy(commands.Cog):
 
         if random.random() < 0.4:
             stolen = random.randint(1, max_steal)
-            await self.update_profile(interaction.user.id,
-                update_data={"balance": balance + stolen, "last_rob": now})
-            await self.update_profile(target.id,
-                update_data={"balance": target_balance - stolen})
+            await self.update_profile(interaction.user.id, update_data={"balance": balance + stolen, "last_rob": now})
+            await self.update_profile(target.id, update_data={"balance": target_balance - stolen})
             await self.send(interaction, "🦹 [ ROBBERY SUCCESSFUL ]",
                 f"```yaml\nTARGET: {target.display_name}\nSTOLEN: {stolen} KioKreds\nYOUR BALANCE: {balance + stolen} KioKreds\n```")
         else:
-            await self.update_profile(interaction.user.id,
-                update_data={"balance": balance - fine, "last_rob": now})
+            await self.update_profile(interaction.user.id, update_data={"balance": balance - fine, "last_rob": now})
             await self.send(interaction, "🚔 [ ROBBERY FAILED ]",
                 f"```yaml\nTARGET: {target.display_name}\nFINE PAID: {fine} KioKreds\nYOUR BALANCE: {balance - fine} KioKreds\n```")
+
+    # ── Gift ──
 
     @app_commands.command(name="gift", description="Give KioKreds to another user")
     @app_commands.describe(target="The user to give KKD to", amount="Amount to give")
     async def gift(self, interaction: discord.Interaction, target: discord.Member, amount: int):
         if target == interaction.user:
             return await self.send(interaction, "❌ [ INVALID TARGET ]", "```yaml\nERROR: You cannot gift yourself.\n```")
-
         if amount < 1:
-            return await self.send(interaction, "❌ [ INVALID AMOUNT ]", "```yaml\nERROR: Amount must be at least 1 KioKred.\n```")
+            return await self.send(interaction, "❌ [ INVALID AMOUNT ]", "```yaml\nERROR: Amount must be at least 1.\n```")
 
         collection = self.get_collection()
         if collection is None:
@@ -506,16 +651,12 @@ class Economy(commands.Cog):
 
         profile = await self.ensure_profile(interaction.user)
         balance = profile.get("balance", 0)
-
         if amount > balance:
             return await self.send(interaction, "❌ [ INSUFFICIENT BALANCE ]",
-                f"```yaml\nYour Balance: {balance} KioKreds\nAmount: {amount} KioKreds\nShortfall: {amount - balance} KioKreds\n```")
+                f"```yaml\nYour Balance: {balance} KioKreds\nAmount: {amount} KioKreds\n```")
 
-        await self.update_profile(interaction.user.id,
-            update_data={"balance": balance - amount})
-        await self.update_profile(target.id,
-            inc_data={"balance": amount})
-
+        await self.update_profile(interaction.user.id, update_data={"balance": balance - amount})
+        await self.update_profile(target.id, inc_data={"balance": amount})
         await self.send(interaction, "🎁 [ GIFT SENT ]",
             f"```yaml\nSENT: {amount} KioKreds\nTO: {target.display_name}\nYOUR BALANCE: {balance - amount} KioKreds\n```")
 
