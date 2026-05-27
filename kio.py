@@ -10,7 +10,11 @@ import motor.motor_asyncio
 load_dotenv()
 token = os.getenv('TOKEN')
 mongo_uri = os.getenv('MONGO_URI')
-mongo_client = motor.motor_asyncio.AsyncIOMotorClient(mongo_uri) if mongo_uri else None
+mongo_client = motor.motor_asyncio.AsyncIOMotorClient(
+    mongo_uri,
+    serverSelectionTimeoutMS=5000,
+    tlsAllowInvalidCertificates=True
+) if mongo_uri else None
 mongo_db = mongo_client["kio"] if mongo_client is not None else None
 test_guild_id = os.getenv('TEST_GUILD_ID')
 test_guild = discord.Object(id=int(test_guild_id)) if test_guild_id else None
