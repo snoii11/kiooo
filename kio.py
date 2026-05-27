@@ -2,109 +2,116 @@ import os
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands
+from discord import app_commands
 import datetime
 import json
+import motor.motor_asyncio
 
 load_dotenv()
 token = os.getenv('TOKEN')
-
-prefix = 'k.'
+mongo_uri = os.getenv('MONGO_URI')
+mongo_client = motor.motor_asyncio.AsyncIOMotorClient(mongo_uri) if mongo_uri else None
+mongo_db = mongo_client["kio"] if mongo_client is not None else None
+test_guild_id = os.getenv('TEST_GUILD_ID')
+test_guild = discord.Object(id=int(test_guild_id)) if test_guild_id else None
 
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix=prefix, intents=intents, case_insensitive=True)
+bot = commands.Bot(command_prefix='k.', intents=intents, case_insensitive=True)
+
 
 def load_data():
-	try:
-		with open("data.json", "r") as f:
-			db = json.load(f)
-	except (FileNotFoundError, json.JSONDecodeError):
-		db = {}
-	
-	# Guarantee schema requirements
-	if "np_list" not in db:
-		db["np_list"] = []
-	if "noprefix_access" not in db:
-		db["noprefix_access"] = []
-	if "warnings" not in db:
-		db["warnings"] = {}
-	return db
+    try:
+        with open("data.json", "r") as f:
+            db = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        db = {}
+    if "np_list" not in db:
+        db["np_list"] = []
+    if "noprefix_access" not in db:
+        db["noprefix_access"] = []
+    if "warnings" not in db:
+        db["warnings"] = {}
+    if "balances" not in db:
+        db["balances"] = {}
+    if "last_work" not in db:
+        db["last_work"] = {}
+    return db
 
 bot.db = load_data()
 
-def save_data():
-	with open("data.json", "w") as f:
-		json.dump(bot.db, f, indent=4)
-bot.save_data = save_data
 
-async def send_embed(ctx, title, description):
-	embed = discord.Embed(title=title, description=description, color=0xFFFF00)
-	if ctx.bot.user:
-		embed.set_footer(text="Kiooo", icon_url=ctx.bot.user.display_avatar.url)
-	else:
-		embed.set_footer(text="Kiooo")
-	embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
-	await ctx.send(embed=embed)
+def save_data():
+    with open("data.json", "w") as f:
+        json.dump(bot.db, f, indent=4)
+bot.save_data = save_data
 
 
 @bot.event
 async def on_ready():
-	print(f"{bot.user} is now online")
-	print(f"Loaded Cogs: {bot.cogs}")
+    print(f"{bot.user} is now online")
+    print(f"Loaded Cogs: {bot.cogs}")
 
-@bot.event
-async def on_message(message):
-	if message.author == bot.user:
-		return
+    if test_guild:
+        bot.tree.copy_global_to(guild=test_guild)
+        await bot.tree.sync(guild=test_guild)
+        print(f"Synced commands to test guild {test_guild_id}")
+    else:
+        await bot.tree.sync()
+        print("Synced commands globally")
 
-	np_users = bot.db.get("np_list", [])
 
-	if message.author.id in np_users:
-		if not message.content.startswith(prefix):
-			message.content = prefix + message.content
+@bot.tree.error
+async def on_tree_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.CommandOnCooldown):
+        return await interaction.response.send_message(
+            embed=discord.Embed(
+                title="⏳ [ COOLDOWN ACTIVE ]",
+                description=f"```yaml\nTry again in {error.retry_after:.1f}s\n```",
+                color=0xFFFF00), ephemeral=True)
 
-	await bot.process_commands(message)
+    if isinstance(error, app_commands.MissingPermissions):
+        return await interaction.response.send_message(
+            embed=discord.Embed(
+                title="❌ [ ACCESS RESTRICTED ]",
+                description="```diff\n- ERROR: Permission denied.\n```",
+                color=0xFFFF00), ephemeral=True)
 
-@bot.event
-async def on_command_error(ctx, error):
-	if isinstance(error, commands.CommandNotFound):
-		return
+    if isinstance(error, app_commands.BotMissingPermissions):
+        return await interaction.response.send_message(
+            embed=discord.Embed(
+                title="❌ [ BOT PERMISSION ERROR ]",
+                description=f"```diff\n- ERROR: I need the following permissions: {', '.join(error.missing_permissions)}\n```",
+                color=0xFFFF00), ephemeral=True)
 
-	if isinstance(error, commands.MissingRequiredArgument):
-		command_name = ctx.command.qualified_name if ctx.command else "command"
-		await send_embed(ctx, "❌ [ SYNTAX ERROR ]", f"```yaml\nCOMMAND: {command_name}\nERROR: Missing required argument\n```")
-		return
+    if isinstance(error, app_commands.TransformerError):
+        return await interaction.response.send_message(
+            embed=discord.Embed(
+                title="❌ [ INVALID ARGUMENT ]",
+                description=f"```yaml\nERROR: Could not parse argument.\n```",
+                color=0xFFFF00), ephemeral=True)
 
-	if isinstance(error, commands.BadArgument):
-		await send_embed(ctx, "❌ [ SYNTAX ERROR ]", "```yaml\nERROR: One or more arguments were invalid.\n```")
-		return
-
-	if isinstance(error, commands.MissingPermissions):
-		await send_embed(ctx, "❌ [ ACCESS RESTRICTED ]", "```diff\n- ERROR: Permission denied.\n```")
-		return
-
-	if isinstance(error, commands.CheckFailure):
-		await send_embed(ctx, "❌ [ ACCESS RESTRICTED ]", "```diff\n- ERROR: You cannot use this command here.\n```")
-		return
-
-	if isinstance(error, commands.CommandInvokeError):
-		print(f"Command {ctx.command.qualified_name if ctx.command else 'unknown'} failed: {error.original}")
-		await send_embed(ctx, "❌ [ OPERATIONAL ERROR ]", "```diff\n- ERROR: An error occurred while running that command.\n```")
-		return
-
-	print(f"Unhandled command error in {ctx.command.qualified_name if ctx.command else 'unknown'}: {error}")
-	await send_embed(ctx, "❌ [ OPERATIONAL ERROR ]", "```diff\n- ERROR: An unexpected error occurred while running that command.\n```")
+    print(f"Unhandled tree error: {error}")
+    try:
+        await interaction.response.send_message(
+            embed=discord.Embed(
+                title="❌ [ OPERATIONAL ERROR ]",
+                description="```diff\n- ERROR: An unexpected error occurred.\n```",
+                color=0xFFFF00), ephemeral=True)
+    except:
+        pass
 
 
 async def setup_hook():
-	await bot.load_extension("owner")
-	await bot.load_extension("fun")
-	await bot.load_extension("utility")
-	await bot.load_extension("moderation")
+    await bot.load_extension("owner")
+    await bot.load_extension("fun")
+    await bot.load_extension("utility")
+    await bot.load_extension("moderation")
+    await bot.load_extension("economy")
+    bot.mongo_db = mongo_db
 bot.setup_hook = setup_hook
-
 
 
 bot.run(token)
