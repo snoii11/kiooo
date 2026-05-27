@@ -102,7 +102,11 @@ class Economy(commands.Cog):
         return e
 
     async def send(self, interaction, title, description):
-        await interaction.response.send_message(embed=self.embed(title, description))
+        e = self.embed(title, description)
+        if interaction.response.is_done():
+            await interaction.followup.send(embed=e)
+        else:
+            await interaction.response.send_message(embed=e)
 
     def get_collection(self):
         mongo_db = getattr(self.bot, "mongo_db", None)
@@ -164,6 +168,7 @@ class Economy(commands.Cog):
         return {"pickaxe": "⛏️", "farming_tool": "🌾", "fishing_rod": "🎣"}.get(tool_type, "🛠️")
 
     async def use_tool(self, interaction, tool_type, action_name, emoji):
+        await interaction.response.defer()
         collection = self.get_collection()
         if collection is None:
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
@@ -223,6 +228,7 @@ class Economy(commands.Cog):
 
     @app_commands.command(name="work", description="Work to earn KioKreds")
     async def work(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         collection = self.get_collection()
         if collection is None:
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
@@ -267,6 +273,7 @@ class Economy(commands.Cog):
     @app_commands.command(name="balance", description="Check your or someone else's balance")
     @app_commands.describe(member="The member to check (defaults to you)")
     async def balance(self, interaction: discord.Interaction, member: discord.Member = None):
+        await interaction.response.defer()
         collection = self.get_collection()
         if collection is None:
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
@@ -281,6 +288,7 @@ class Economy(commands.Cog):
 
     @app_commands.command(name="daily", description="Claim your daily reward")
     async def daily(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         collection = self.get_collection()
         if collection is None:
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
@@ -308,6 +316,7 @@ class Economy(commands.Cog):
 
     @app_commands.command(name="leaderboard", description="View the economy leaderboard")
     async def leaderboard(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         collection = self.get_collection()
         if collection is None:
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
@@ -338,6 +347,7 @@ class Economy(commands.Cog):
         app_commands.Choice(name="🎣 Fishing", value="fishing"),
     ])
     async def inventory(self, interaction: discord.Interaction, category: str = "all"):
+        await interaction.response.defer()
         collection = self.get_collection()
         if collection is None:
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
@@ -425,6 +435,7 @@ class Economy(commands.Cog):
         app_commands.Choice(name="🧰 Repair Kit — 1,000 KKD", value="repair_kit"),
     ])
     async def buy(self, interaction: discord.Interaction, item: str):
+        await interaction.response.defer()
         collection = self.get_collection()
         if collection is None:
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
@@ -466,6 +477,7 @@ class Economy(commands.Cog):
 
     @app_commands.command(name="repair", description="Use a Repair Kit to add +50 durability to all your tools")
     async def repair(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         collection = self.get_collection()
         if collection is None:
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
@@ -499,6 +511,7 @@ class Economy(commands.Cog):
     @app_commands.command(name="sell", description="Sell collected items from your inventory")
     @app_commands.describe(item="Item to sell (or 'all' to sell everything)")
     async def sell(self, interaction: discord.Interaction, item: str = "all"):
+        await interaction.response.defer()
         collection = self.get_collection()
         if collection is None:
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
@@ -565,6 +578,7 @@ class Economy(commands.Cog):
     @app_commands.command(name="gamble", description="Bet on 50/50 — double or nothing")
     @app_commands.describe(amount="Amount of KioKreds to bet")
     async def gamble(self, interaction: discord.Interaction, amount: int):
+        await interaction.response.defer()
         collection = self.get_collection()
         if collection is None:
             return await self.send(interaction, "❌ [ DATABASE OFFLINE ]", "Economy database is not configured.")
@@ -593,6 +607,7 @@ class Economy(commands.Cog):
     @app_commands.command(name="rob", description="Try to rob another user")
     @app_commands.describe(target="The user to rob")
     async def rob(self, interaction: discord.Interaction, target: discord.Member):
+        await interaction.response.defer()
         if target == interaction.user:
             return await self.send(interaction, "❌ [ INVALID TARGET ]", "```yaml\nERROR: You cannot rob yourself.\n```")
 
@@ -640,6 +655,7 @@ class Economy(commands.Cog):
     @app_commands.command(name="gift", description="Give KioKreds to another user")
     @app_commands.describe(target="The user to give KKD to", amount="Amount to give")
     async def gift(self, interaction: discord.Interaction, target: discord.Member, amount: int):
+        await interaction.response.defer()
         if target == interaction.user:
             return await self.send(interaction, "❌ [ INVALID TARGET ]", "```yaml\nERROR: You cannot gift yourself.\n```")
         if amount < 1:
