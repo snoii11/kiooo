@@ -1,2 +1,3 @@
 [deploy]
 startCommand = "python kio.py"
+
