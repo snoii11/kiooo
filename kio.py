@@ -22,6 +22,8 @@ test_guild = discord.Object(id=int(test_guild_id)) if test_guild_id else None
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
+intents.guild = True
+intents.messages = True
 
 bot = commands.Bot(command_prefix='k.', intents=intents, case_insensitive=True)
 
@@ -115,6 +117,7 @@ async def setup_hook():
     await bot.load_extension("utility")
     await bot.load_extension("moderation")
     await bot.load_extension("economy")
+    await bot.load_extension("logger")
     bot.mongo_db = mongo_db
 bot.setup_hook = setup_hook
 
