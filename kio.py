@@ -22,7 +22,7 @@ test_guild = discord.Object(id=int(test_guild_id)) if test_guild_id else None
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
-intents.guild = True
+intents.guilds = True
 intents.messages = True
 
 bot = commands.Bot(command_prefix='k.', intents=intents, case_insensitive=True)
