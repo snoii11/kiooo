@@ -151,6 +151,75 @@ class Fun(commands.Cog):
         except Exception as e:
             await interaction.followup.send(f"❌ Translation failed: {str(e)}")
 
+    @app_commands.command(name="dice", description="Roll a dice")
+    @app_commands.describe(sides="Number of sides (default 6)")
+    async def dice(self, interaction: discord.Interaction, sides: int = 6):
+        if sides < 2:
+            return await interaction.response.send_message(embed=self.embed(
+                "❌ [ VALIDATION ERROR ]",
+                "```diff\n- ERROR: A dice must have at least 2 sides.\n```"))
+
+        result = random.randint(1, sides)
+        await interaction.response.send_message(embed=self.embed(
+            "🎲 [ DICE ROLL ]",
+            f"```yaml\nSIDES: d{sides}\nRESULT: {result}\n```\n> Tip: Try again with `/dice sides:20` for a d20!"))
+
+    @app_commands.command(name="coinflip", description="Flip a coin")
+    async def coinflip(self, interaction: discord.Interaction):
+        result = random.choice(["Heads", "Tails"])
+        emoji = "🪙"
+        await interaction.response.send_message(embed=self.embed(
+            f"{emoji} [ COIN FLIP ]",
+            f"```yaml\nRESULT: {result}\n```"))
+
+    @app_commands.command(name="rps", description="Play rock-paper-scissors")
+    @app_commands.describe(choice="Your choice")
+    @app_commands.choices(choice=[
+        app_commands.Choice(name="Rock", value="rock"),
+        app_commands.Choice(name="Paper", value="paper"),
+        app_commands.Choice(name="Scissors", value="scissors"),
+    ])
+    async def rps(self, interaction: discord.Interaction, choice: str):
+        bot_choice = random.choice(["rock", "paper", "scissors"])
+        emojis = {"rock": "🪨", "paper": "📄", "scissors": "✂️"}
+
+        if choice == bot_choice:
+            result = "It's a tie!"
+        elif (choice == "rock" and bot_choice == "scissors") or \
+             (choice == "paper" and bot_choice == "rock") or \
+             (choice == "scissors" and bot_choice == "paper"):
+            result = "You win!"
+        else:
+            result = "I win!"
+
+        await interaction.response.send_message(embed=self.embed(
+            "✂️ [ ROCK PAPER SCISSORS ]",
+            f"```yaml\nYOU: {emojis[choice]} {choice.upper()}\nBOT: {emojis[bot_choice]} {bot_choice.upper()}\nRESULT: {result}\n```"))
+
+    @app_commands.command(name="reverse", description="Reverse text")
+    @app_commands.describe(text="The text to reverse")
+    async def reverse(self, interaction: discord.Interaction, text: str):
+        reversed_text = text[::-1]
+        await interaction.response.send_message(embed=self.embed(
+            "🔄 [ TEXT REVERSAL ]",
+            f"```yaml\nORIGINAL: \"{text}\"\nREVERSED: \"{reversed_text}\"\n```"))
+
+    @app_commands.command(name="quote", description="Get a random inspirational quote")
+    async def quote(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        async with aiohttp.ClientSession(headers={"Accept-Encoding": "gzip, deflate"}) as session:
+            async with session.get("https://api.quotable.io/random") as r:
+                if r.status != 200:
+                    return await interaction.followup.send(embed=self.embed(
+                        "📜 [ INSPIRATIONAL QUOTE ]",
+                        "```yaml\n\"The only way to do great work is to love what you do.\"\n— Steve Jobs\n```"))
+
+                data = await r.json()
+                await interaction.followup.send(embed=self.embed(
+                    "📜 [ INSPIRATIONAL QUOTE ]",
+                    f"```yaml\n\"{data['content']}\"\n— {data['author']}\n```",
+                    color=COLOR_CYAN))
+
 
 async def setup(bot):
     await bot.add_cog(Fun(bot))

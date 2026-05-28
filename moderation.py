@@ -235,5 +235,83 @@ class Moderation(commands.Cog):
             "✅ [ SECURE REGISTRY MODIFIED ]",
             f"```yaml\nTARGET: {member}\nROLE REMOVED: {role.name}\nSTATUS: De-assigned successfully.\n```")
 
+    @app_commands.command(name="nick", description="Change a member's nickname")
+    @app_commands.default_permissions(manage_nicknames=True)
+    @app_commands.describe(member="The member to rename", nickname="The new nickname (leave blank to reset)")
+    async def nick(self, interaction: discord.Interaction, member: discord.Member, nickname: str = None):
+        err = self.check_hierarchy(interaction, member)
+        if err:
+            return await self.send(interaction, "❌ [ MODERATION DENIED ]", f"```diff\n- ERROR: {err}\n```")
+
+        try:
+            old = member.display_name
+            await member.edit(nick=nickname)
+            if nickname:
+                await self.send(interaction,
+                    "✏️ [ ACTION LOG: MEMBER RENAMED ]",
+                    f"```yaml\nTARGET: {member}\nOLD: {old}\nNEW: {nickname}\nSTATUS: Identity overwritten.\n```")
+            else:
+                await self.send(interaction,
+                    "✏️ [ ACTION LOG: NICKNAME RESET ]",
+                    f"```yaml\nTARGET: {member}\nOLD: {old}\nNEW: {member.name}\nSTATUS: Identity restored to default.\n```")
+        except Exception as e:
+            print(f"Error changing nickname: {e}")
+            await self.send(interaction, "❌ [ OPERATIONAL ERROR ]", "```diff\n- ERROR: An error occurred while trying to change the nickname.\n```")
+
+    @app_commands.command(name="move", description="Move a member to another voice channel")
+    @app_commands.default_permissions(move_members=True)
+    @app_commands.describe(member="The member to move", channel="The voice channel to move them to")
+    async def move(self, interaction: discord.Interaction, member: discord.Member, channel: discord.VoiceChannel):
+        if not member.voice or not member.voice.channel:
+            return await self.send(interaction, "❌ [ OPERATIONAL FAILURE ]", "```diff\n- ERROR: That member is not currently in a voice channel.\n```")
+
+        try:
+            await member.move_to(channel)
+            await self.send(interaction,
+                "🚀 [ ACTION LOG: MEMBER MOVED ]",
+                f"```yaml\nTARGET: {member}\nFROM: {member.voice.channel.name if member.voice and member.voice.channel else 'None'}\nTO: {channel.name}\nSTATUS: Relocated.\n```")
+        except Exception as e:
+            print(f"Error moving member: {e}")
+            await self.send(interaction, "❌ [ OPERATIONAL ERROR ]", "```diff\n- ERROR: An error occurred while trying to move the member.\n```")
+
+    @app_commands.command(name="voicekick", description="Disconnect a member from voice channel")
+    @app_commands.default_permissions(mute_members=True)
+    @app_commands.describe(member="The member to disconnect", reason="Reason for disconnecting")
+    async def voicekick(self, interaction: discord.Interaction, member: discord.Member, reason: str = None):
+        err = self.check_hierarchy(interaction, member)
+        if err:
+            return await self.send(interaction, "❌ [ MODERATION DENIED ]", f"```diff\n- ERROR: {err}\n```")
+
+        if not member.voice or not member.voice.channel:
+            return await self.send(interaction, "❌ [ OPERATIONAL FAILURE ]", "```diff\n- ERROR: That member is not currently in a voice channel.\n```")
+
+        try:
+            await member.move_to(None)
+            await self.send(interaction,
+                "🔊 [ ACTION LOG: VOICE DISCONNECT ]",
+                f"```yaml\nTARGET: {member}\nCHANNEL: {member.voice.channel.name if member.voice and member.voice.channel else 'N/A'}\nREASON: {reason if reason else 'No reason provided.'}\nSTATUS: Disconnected.\n```")
+        except Exception as e:
+            print(f"Error disconnecting member: {e}")
+            await self.send(interaction, "❌ [ OPERATIONAL ERROR ]", "```diff\n- ERROR: An error occurred while trying to disconnect the member.\n```")
+
+    @app_commands.command(name="banlist", description="View the list of banned users")
+    @app_commands.default_permissions(ban_members=True)
+    async def banlist(self, interaction: discord.Interaction):
+        try:
+            bans = [entry async for entry in interaction.guild.bans()]
+            if not bans:
+                return await self.send(interaction, "✅ [ BAN LIST ]", "```yaml\nSTATUS: No banned users found.\n```")
+
+            lines = [f"✦ {b.user.name} ({b.user.id})" for b in bans[:50]]
+            if len(bans) > 50:
+                lines.append(f"\n... and {len(bans) - 50} more.")
+
+            await self.send(interaction,
+                "📋 [ BAN LIST ]",
+                f"```yaml\nTOTAL BANS: {len(bans)}\n\n" + "\n".join(lines) + "\n```")
+        except Exception as e:
+            print(f"Error fetching ban list: {e}")
+            await self.send(interaction, "❌ [ OPERATIONAL ERROR ]", "```diff\n- ERROR: An error occurred while fetching the ban list.\n```")
+
 async def setup(bot):
     await bot.add_cog(Moderation(bot))

@@ -55,6 +55,7 @@ bot.save_data = save_data
 
 @bot.event
 async def on_ready():
+    bot.start_time = datetime.datetime.now(datetime.timezone.utc)
     print(f"{bot.user} is now online")
     print(f"Loaded Cogs: {bot.cogs}")
 

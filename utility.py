@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import datetime
+import asyncio
 
 COLOR_YELLOW = 0xFFFF00
 
@@ -172,6 +173,84 @@ class Utility(commands.Cog):
         await interaction.response.send_message(embed=self.embed(
             "🏓 [ NETWORK PING TRACE ]",
             f"```yaml\nCONNECTION: Active\nLATENCY: {round(self.bot.latency * 1000)} ms\nDIAGNOSTICS: Nominal\n```"))
+
+    @app_commands.command(name="poll", description="Create a poll for members to vote on")
+    @app_commands.describe(question="The poll question", option1="First option", option2="Second option", option3="Third option (optional)", option4="Fourth option (optional)")
+    async def poll(self, interaction: discord.Interaction, question: str, option1: str, option2: str, option3: str = None, option4: str = None):
+        options = [option1, option2]
+        if option3:
+            options.append(option3)
+        if option4:
+            options.append(option4)
+
+        emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"]
+        desc = "\n\n".join(f"{emojis[i]} {opt}" for i, opt in enumerate(options))
+        e = discord.Embed(title=f"📊 [ POLL: {question} ]", description=desc, color=COLOR_YELLOW)
+        e.set_footer(text="Kiooo • React to vote", icon_url=self.bot.user.display_avatar.url)
+        e.timestamp = datetime.datetime.now(datetime.timezone.utc)
+        msg = await interaction.response.send_message(embed=e)
+        msg = await interaction.original_response()
+        for i in range(len(options)):
+            await msg.add_reaction(emojis[i])
+
+    @app_commands.command(name="remind", description="Set a reminder")
+    @app_commands.describe(minutes="Minutes from now", text="What to remind you about")
+    async def remind(self, interaction: discord.Interaction, minutes: int, text: str):
+        if minutes < 1:
+            return await interaction.response.send_message(embed=self.embed(
+                "❌ [ VALIDATION ERROR ]",
+                "```diff\n- ERROR: Minutes must be at least 1.\n```"))
+
+        await interaction.response.send_message(embed=self.embed(
+            "⏰ [ REMINDER SET ]",
+            f"```yaml\nTIME: {minutes} minute(s) from now\nMESSAGE: {text}\nSTATUS: Confirmed\n```"))
+
+        await asyncio.sleep(minutes * 60)
+        try:
+            await interaction.user.send(embed=self.embed(
+                "⏰ [ REMINDER ]",
+                f"```yaml\nMESSAGE: {text}\nSTATUS: Delivered\n```"))
+        except:
+            pass
+
+    @app_commands.command(name="roleinfo", description="View information about a role")
+    @app_commands.describe(role="The role to look up")
+    async def roleinfo(self, interaction: discord.Interaction, role: discord.Role):
+        perms = [p.replace('_', ' ').upper() for p, v in role.permissions if v]
+        perm_text = "\n".join(f"✦ {p}" for p in perms[:15]) if perms else "None"
+        if len(perms) > 15:
+            perm_text += f"\n\n... and {len(perms) - 15} more permissions."
+
+        e = discord.Embed(title=f"🧬 [ ROLE ANALYSIS: {role.name} ]", color=role.color if role.color.value != 0 else COLOR_YELLOW)
+        e.add_field(name="🆔 ROLE ID", value=f"`{role.id}`", inline=True)
+        e.add_field(name="🎨 COLOR", value=f"`#{role.color.value:06x}`" if role.color.value != 0 else "`None`", inline=True)
+        e.add_field(name="👥 MEMBERS", value=f"`{len(role.members)}`", inline=True)
+        e.add_field(name="📶 POSITION", value=f"`{role.position}`", inline=True)
+        e.add_field(name="🔒 MENTIONABLE", value=f"`{role.mentionable}`", inline=True)
+        e.add_field(name="📌 DISPLAYED SEPARATELY", value=f"`{role.hoist}`", inline=True)
+        e.add_field(name="🛡️ PERMISSIONS", value=perm_text, inline=False)
+        e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
+        e.timestamp = datetime.datetime.now(datetime.timezone.utc)
+        await interaction.response.send_message(embed=e)
+
+    @app_commands.command(name="botinfo", description="View information about the bot")
+    async def botinfo(self, interaction: discord.Interaction):
+        bot = self.bot
+        guilds = len(bot.guilds)
+        users = sum(g.member_count for g in bot.guilds)
+        uptime = datetime.datetime.now(datetime.timezone.utc) - bot.start_time if hasattr(bot, 'start_time') else datetime.timedelta(0)
+        uptime_str = str(uptime).split('.')[0]
+
+        e = discord.Embed(title="🤖 [ BOT SYSTEM INFO ]", color=COLOR_YELLOW)
+        e.add_field(name="🆔 BOT ID", value=f"`{bot.user.id}`", inline=True)
+        e.add_field(name="📦 SERVERS", value=f"`{guilds}`", inline=True)
+        e.add_field(name="👥 USERS", value=f"`{users}`", inline=True)
+        e.add_field(name="⏱️ UPTIME", value=f"`{uptime_str}`", inline=False)
+        e.add_field(name="📡 LATENCY", value=f"`{round(bot.latency * 1000)} ms`", inline=True)
+        e.add_field(name="🐍 LIBRARY", value="`discord.py`", inline=True)
+        e.set_footer(text="Kiooo", icon_url=bot.user.display_avatar.url)
+        e.timestamp = datetime.datetime.now(datetime.timezone.utc)
+        await interaction.response.send_message(embed=e)
 
 
 async def setup(bot):
