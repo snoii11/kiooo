@@ -3,8 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import datetime
 import asyncio
-
-COLOR_YELLOW = 0xFFFF00
+from colors import COLOR
 
 
 class ServerInfoView(discord.ui.View):
@@ -34,7 +33,7 @@ class ServerInfoView(discord.ui.View):
             e = discord.Embed(
                 title="🛡️ [ CORE ADMINISTRATORS ]",
                 description=f"```ini\n[SECTOR] {guild.name}\n[COUNT] {len(admins)} admin nodes\n```\n{text or 'None found.'}",
-                color=COLOR_YELLOW)
+                color=COLOR)
 
         elif select.values[0] == "boosters":
             boosters = [m for m in guild.members if m.premium_since]
@@ -44,7 +43,7 @@ class ServerInfoView(discord.ui.View):
             e = discord.Embed(
                 title="⚡ [ SERVER SYSTEM AMPLIFIERS ]",
                 description=f"```ini\n[SECTOR] {guild.name}\n[COUNT] {len(boosters)} boosters\n```\n{text or 'None found.'}",
-                color=COLOR_YELLOW)
+                color=COLOR)
 
         elif select.values[0] == "emojis":
             emojis = guild.emojis
@@ -54,7 +53,7 @@ class ServerInfoView(discord.ui.View):
             e = discord.Embed(
                 title="🔮 [ GUILD EMOJI MANIFEST ]",
                 description=f"```ini\n[SECTOR] {guild.name}\n[COUNT] {len(emojis)} custom emojis\n```\n{text or 'None found.'}",
-                color=COLOR_YELLOW)
+                color=COLOR)
 
         elif select.values[0] == "roles":
             roles = guild.roles
@@ -64,7 +63,7 @@ class ServerInfoView(discord.ui.View):
             e = discord.Embed(
                 title="🧬 [ SECURITY ROLE DIRECTORY ]",
                 description=f"```ini\n[SECTOR] {guild.name}\n[COUNT] {len(roles)} registered roles\n```\n{text or 'None found.'}",
-                color=COLOR_YELLOW)
+                color=COLOR)
 
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
@@ -103,13 +102,13 @@ class UserInfoView(discord.ui.View):
             e = discord.Embed(
                 title=f"🛡️ [ PERMISSIONS MATRIX: {self.member.name} ]",
                 description=f"```prolog\n[NODENAME] {self.member}\n[MATRIX OVERVIEW]\n```\n{fmt}",
-                color=COLOR_YELLOW)
+                color=COLOR)
 
         elif select.values[0] == "badges":
             e = discord.Embed(
                 title="🎖️ [ SECTOR BADGES ]",
                 description="```diff\n- ERROR: Badging sub-routine offline.\n> Tip: Badge records system coming soon!\n```",
-                color=COLOR_YELLOW)
+                color=COLOR)
 
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
@@ -121,7 +120,7 @@ class Utility(commands.Cog):
         self.bot = bot
 
     def embed(self, title, description):
-        e = discord.Embed(title=title, description=description, color=COLOR_YELLOW)
+        e = discord.Embed(title=title, description=description, color=COLOR)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         return e
@@ -135,7 +134,7 @@ class Utility(commands.Cog):
         joined = member.joined_at.strftime("%Y-%m-%d %H:%M:%S") if member.joined_at else "UNKNOWN"
         created = member.created_at.strftime("%Y-%m-%d %H:%M:%S") if member.created_at else "UNKNOWN"
 
-        e = discord.Embed(title=f"❖ [ USER DIAGNOSTICS: {member.name} ] ❖", color=COLOR_YELLOW)
+        e = discord.Embed(title=f"❖ [ USER DIAGNOSTICS: {member.name} ] ❖", color=COLOR)
         e.add_field(name="🧬 USER IDENTIFIER", value=f"`{member.name}`", inline=True)
         e.add_field(name="🆔 SYSTEM ID", value=f"`{member.id}`", inline=True)
         e.add_field(name="📅 SERVER OVERLINK ESTABLISHED", value=f"`{joined}`", inline=False)
@@ -149,7 +148,7 @@ class Utility(commands.Cog):
     async def avatar(self, interaction: discord.Interaction, member: discord.Member = None):
         if member is None:
             member = interaction.user
-        e = discord.Embed(title=f"🖼️ [ VISUAL AVATAR DATA: {member.name} ]", color=COLOR_YELLOW)
+        e = discord.Embed(title=f"🖼️ [ VISUAL AVATAR DATA: {member.name} ]", color=COLOR)
         e.set_image(url=member.display_avatar.url)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
@@ -159,7 +158,7 @@ class Utility(commands.Cog):
     async def serverinfo(self, interaction: discord.Interaction):
         guild = interaction.guild
         owner = guild.owner.name if guild.owner else "UnknownOwner"
-        e = discord.Embed(title=f"🪐 [ GUILD SYSTEM MANIFEST: {guild.name} ]", color=COLOR_YELLOW)
+        e = discord.Embed(title=f"🪐 [ GUILD SYSTEM MANIFEST: {guild.name} ]", color=COLOR)
         e.add_field(name="🌌 GUILD CODENAME", value=f"`{guild.name}`", inline=True)
         e.add_field(name="🆔 REGISTRY ID", value=f"`{guild.id}`", inline=True)
         e.add_field(name="👑 SECTOR FOUNDER", value=f"`{owner}`", inline=False)
@@ -185,7 +184,7 @@ class Utility(commands.Cog):
 
         emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"]
         desc = "\n\n".join(f"{emojis[i]} {opt}" for i, opt in enumerate(options))
-        e = discord.Embed(title=f"📊 [ POLL: {question} ]", description=desc, color=COLOR_YELLOW)
+        e = discord.Embed(title=f"📊 [ POLL: {question} ]", description=desc, color=COLOR)
         e.set_footer(text="Kiooo • React to vote", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         msg = await interaction.response.send_message(embed=e)
@@ -221,7 +220,7 @@ class Utility(commands.Cog):
         if len(perms) > 15:
             perm_text += f"\n\n... and {len(perms) - 15} more permissions."
 
-        e = discord.Embed(title=f"🧬 [ ROLE ANALYSIS: {role.name} ]", color=role.color if role.color.value != 0 else COLOR_YELLOW)
+        e = discord.Embed(title=f"🧬 [ ROLE ANALYSIS: {role.name} ]", color=role.color if role.color.value != 0 else COLOR)
         e.add_field(name="🆔 ROLE ID", value=f"`{role.id}`", inline=True)
         e.add_field(name="🎨 COLOR", value=f"`#{role.color.value:06x}`" if role.color.value != 0 else "`None`", inline=True)
         e.add_field(name="👥 MEMBERS", value=f"`{len(role.members)}`", inline=True)
@@ -241,7 +240,7 @@ class Utility(commands.Cog):
         uptime = datetime.datetime.now(datetime.timezone.utc) - bot.start_time if hasattr(bot, 'start_time') else datetime.timedelta(0)
         uptime_str = str(uptime).split('.')[0]
 
-        e = discord.Embed(title="🤖 [ BOT SYSTEM INFO ]", color=COLOR_YELLOW)
+        e = discord.Embed(title="🤖 [ BOT SYSTEM INFO ]", color=COLOR)
         e.add_field(name="🆔 BOT ID", value=f"`{bot.user.id}`", inline=True)
         e.add_field(name="📦 SERVERS", value=f"`{guilds}`", inline=True)
         e.add_field(name="👥 USERS", value=f"`{users}`", inline=True)

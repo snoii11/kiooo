@@ -2,9 +2,9 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import datetime
+from colors import COLOR
 
 own = 1491790586166902874
-COLOR_YELLOW = 0xFFFF00
 
 
 class ConfirmView(discord.ui.View):
@@ -17,7 +17,7 @@ class ConfirmView(discord.ui.View):
         e = discord.Embed(
             title="❖ [ SYSTEM SHUTDOWN CONFIRMED ] ❖",
             description="```ini\n[STATUS] Terminal shutdown command authorized.\n[ACTION] Terminating active processes and closing connection.\n```",
-            color=COLOR_YELLOW)
+            color=COLOR)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await interaction.response.send_message(embed=e)
@@ -29,7 +29,7 @@ class ConfirmView(discord.ui.View):
         e = discord.Embed(
             title="❖ [ SHUTDOWN CANCELLED ] ❖",
             description="```ini\n[STATUS] Terminal shutdown aborted.\n[ACTION] Resuming normal operations.\n```",
-            color=COLOR_YELLOW)
+            color=COLOR)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await interaction.response.send_message(embed=e)
@@ -41,7 +41,7 @@ class Owner(commands.Cog):
         self.bot = bot
 
     def embed(self, title, description):
-        e = discord.Embed(title=title, description=description, color=COLOR_YELLOW)
+        e = discord.Embed(title=title, description=description, color=COLOR)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         return e
@@ -59,12 +59,12 @@ class Owner(commands.Cog):
         e = discord.Embed(
             title="❖ [ SYSTEM SHUTDOWN PROMPT ] ❖",
             description="```yaml\nWARNING: You are about to initiate a terminal shutdown. This will disconnect the bot completely.\n```\n**Are you sure you want to proceed?**",
-            color=COLOR_YELLOW)
+            color=COLOR)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await interaction.response.send_message(embed=e, view=view)
 
-    @app_commands.command(name="np", description="Manage the no-prefix user list")
+    @app_commands.command(name="np", description="Manage the no-prefix user list (owner only)")
     @app_commands.describe(action="add, remove, or list", user_id="User ID (required for add/remove)")
     @app_commands.choices(action=[
         app_commands.Choice(name="add", value="add"),
@@ -72,8 +72,7 @@ class Owner(commands.Cog):
         app_commands.Choice(name="list", value="list"),
     ])
     async def np(self, interaction: discord.Interaction, action: str, user_id: str = None):
-        allowed = self.bot.db.get("noprefix_access", [])
-        if interaction.user.id != own and interaction.user.id not in allowed:
+        if interaction.user.id != own:
             return await self.send(interaction, "❌ [ ACCESS RESTRICTED ]",
                 "```diff\n- ERROR: Permission denied.\n- COMMAND: No-Prefix settings modification is restricted to Core Administration.\n```")
 
@@ -86,19 +85,23 @@ class Owner(commands.Cog):
             return await self.send(interaction, "❌ [ SYNTAX ERROR ]",
                 f"```yaml\nCOMMAND: np\nERROR: Missing user_id for '{action}'\nUSAGE: /np action:{action} user_id:123456789\n```")
 
-        uid = int(user_id)
+        try:
+            uid = int(user_id)
+        except ValueError:
+            return await self.send(interaction, "❌ [ INVALID USER ID ]",
+                "```yaml\nERROR: User ID must be a numeric value.\n```")
 
         if action == "add":
             if uid not in self.bot.db["np_list"]:
                 self.bot.db["np_list"].append(uid)
-                self.bot.save_data()
+                await self.bot.save_data()
             await self.send(interaction, "✅ [ CONFIGURATION UPDATED ]",
                 f"```ini\n[STATUS] Modification successful.\n[ACTION] Added user <@{uid}> ({uid}) to No-Prefix list.\n```\n> Tip: You can remove users with `/np action:remove`")
 
         elif action == "remove":
             if uid in self.bot.db["np_list"]:
                 self.bot.db["np_list"].remove(uid)
-                self.bot.save_data()
+                await self.bot.save_data()
             await self.send(interaction, "🗑️ [ CONFIGURATION UPDATED ]",
                 f"```ini\n[STATUS] Modification successful.\n[ACTION] Removed user <@{uid}> ({uid}) from No-Prefix list.\n```\n> Tip: You can add users with `/np action:add`")
 
@@ -139,19 +142,23 @@ class Owner(commands.Cog):
             return await self.send(interaction, "❌ [ ACCESS RESTRICTED ]",
                 "```diff\n- ERROR: Permission denied.\n- COMMAND: This command is restricted to Core Owner.\n```")
 
-        uid = int(user_id)
+        try:
+            uid = int(user_id)
+        except ValueError:
+            return await self.send(interaction, "❌ [ INVALID USER ID ]",
+                "```yaml\nERROR: User ID must be a numeric value.\n```")
 
         if action == "add":
             if uid not in self.bot.db["noprefix_access"]:
                 self.bot.db["noprefix_access"].append(uid)
-                self.bot.save_data()
+                await self.bot.save_data()
             await self.send(interaction, "✅ [ PRIVILEGES GRANTED ]",
                 f"```ini\n[PRIVILEGE] No-Prefix Admin Access\n[GRANTEE] User ID {uid}\n[STATUS] Added successfully.\n```")
 
         elif action == "remove":
             if uid in self.bot.db["noprefix_access"]:
                 self.bot.db["noprefix_access"].remove(uid)
-                self.bot.save_data()
+                await self.bot.save_data()
             await self.send(interaction, "🗑️ [ PRIVILEGES REVOKED ]",
                 f"```ini\n[PRIVILEGE] No-Prefix Admin Access\n[REVOKEE] User ID {uid}\n[STATUS] Removed successfully.\n```")
 

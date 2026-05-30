@@ -2,15 +2,14 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import datetime
-
-COLOR_YELLOW = 0xFFFF00
+from colors import COLOR
 
 class Moderation(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     def embed(self, title, description):
-        e = discord.Embed(title=title, description=description, color=COLOR_YELLOW)
+        e = discord.Embed(title=title, description=description, color=COLOR)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         return e
@@ -75,9 +74,9 @@ class Moderation(commands.Cog):
     @app_commands.command(name="unban", description="Unban a user by their ID")
     @app_commands.default_permissions(ban_members=True)
     @app_commands.describe(user_id="The ID of the user to unban")
-    async def unban(self, interaction: discord.Interaction, user_id: str):
+    async def unban(self, interaction: discord.Interaction, user_id: int):
         try:
-            user = await self.bot.fetch_user(int(user_id))
+            user = await self.bot.fetch_user(user_id)
             await interaction.guild.unban(user)
             await self.send(interaction,
                 "✅ [ ACTION LOG: MEMBER UNBANNED ]",
@@ -155,7 +154,7 @@ class Moderation(commands.Cog):
             if user_id not in self.bot.db["warnings"]:
                 self.bot.db["warnings"][user_id] = []
             self.bot.db["warnings"][user_id].append(reason if reason else "No reason provided.")
-            self.bot.save_data()
+            await self.bot.save_data()
             await self.send(interaction,
                 "⚠️ [ ACTION LOG: MEMBER WARNED ]",
                 f"```yaml\nTARGET: {member}\nREASON: {reason if reason else 'No reason provided.'}\nTOTAL WARNINGS: {len(self.bot.db['warnings'][user_id])}\n```")
@@ -217,7 +216,7 @@ class Moderation(commands.Cog):
         if err:
             return await self.send(interaction, "❌ [ ROLE ACCESS RESTRICTED ]", f"```diff\n- ERROR: {err}\n```")
 
-        await member.add_roles(role)
+        await member.add_roles(role, reason=f"Moderator: {interaction.user} ({interaction.user.id})")
         await self.send(interaction,
             "✅ [ SECURE REGISTRY MODIFIED ]",
             f"```yaml\nTARGET: {member}\nROLE ADDED: {role.name}\nSTATUS: Assigned successfully.\n```")
@@ -230,7 +229,7 @@ class Moderation(commands.Cog):
         if err:
             return await self.send(interaction, "❌ [ ROLE ACCESS RESTRICTED ]", f"```diff\n- ERROR: {err}\n```")
 
-        await member.remove_roles(role)
+        await member.remove_roles(role, reason=f"Moderator: {interaction.user} ({interaction.user.id})")
         await self.send(interaction,
             "✅ [ SECURE REGISTRY MODIFIED ]",
             f"```yaml\nTARGET: {member}\nROLE REMOVED: {role.name}\nSTATUS: De-assigned successfully.\n```")

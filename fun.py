@@ -8,8 +8,7 @@ import aiohttp
 from deep_translator import GoogleTranslator
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-
-url = f"https://insult.mattbas.org/api/insult&rand={random.randint(1, 1000000)}"
+from colors import COLOR
 
 answers = [
     "Yes!", "No!", "Maybe...", "Definitely!",
@@ -17,13 +16,12 @@ answers = [
     "Without a doubt!", "Very doubtful!"
 ]
 
-COLOR_YELLOW = 0xFFFF00
 COLOR_CYAN = 0x00F0FF
 
 
 class TriviaView(discord.ui.View):
     def __init__(self, all_answers, correct_answer):
-        super().__init__()
+        super().__init__(timeout=300)
         self.correct_answer = correct_answer
         self.add_item(TriviaSelect(all_answers, correct_answer))
 
@@ -56,7 +54,7 @@ class MemeView(discord.ui.View):
         async with aiohttp.ClientSession(headers={"Accept-Encoding": "gzip, deflate"}) as session:
             async with session.get("https://meme-api.com/gimme") as r:
                 data = await r.json()
-                e = discord.Embed(title=data["title"], color=COLOR_YELLOW)
+                e = discord.Embed(title=data["title"], color=COLOR)
                 e.set_image(url=data["url"])
                 e.set_footer(text=f"👍 {data['ups']} | r/{data['subreddit']}")
                 await interaction.response.edit_message(embed=e)
@@ -66,7 +64,7 @@ class Fun(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    def embed(self, title, description, color=COLOR_YELLOW):
+    def embed(self, title, description, color=COLOR):
         e = discord.Embed(title=title, description=description, color=color)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
@@ -93,7 +91,7 @@ class Fun(commands.Cog):
         async with aiohttp.ClientSession(headers={"Accept-Encoding": "gzip, deflate"}) as session:
             async with session.get("https://meme-api.com/gimme") as r:
                 data = await r.json()
-                e = discord.Embed(title=data["title"], color=COLOR_YELLOW)
+                e = discord.Embed(title=data["title"], color=COLOR)
                 e.set_image(url=data["url"])
                 e.set_footer(text=f"👍 {data['ups']} | r/{data['subreddit']}")
                 await interaction.followup.send(embed=e, view=MemeView())
@@ -129,7 +127,7 @@ class Fun(commands.Cog):
             target = interaction.user
         await interaction.response.defer()
         async with aiohttp.ClientSession(headers={"Accept-Encoding": "gzip, deflate"}) as session:
-            async with session.get(url) as r:
+            async with session.get(f"https://insult.mattbas.org/api/insult?rand={random.randint(1, 1000000)}") as r:
                 insult = await r.text()
                 await interaction.followup.send(embed=self.embed(
                     "🔥 [ ROAST ]",

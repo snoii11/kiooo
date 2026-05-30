@@ -4,8 +4,10 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import datetime
-import json
 import motor.motor_asyncio
+import asyncio
+import json
+from colors import COLOR
 
 load_dotenv()
 token = os.getenv('TOKEN')
@@ -13,7 +15,6 @@ mongo_uri = os.getenv('MONGO_URI')
 mongo_client = motor.motor_asyncio.AsyncIOMotorClient(
     mongo_uri,
     serverSelectionTimeoutMS=5000,
-    tlsAllowInvalidCertificates=True
 ) if mongo_uri else None
 mongo_db = mongo_client["kio"] if mongo_client is not None else None
 test_guild_id = os.getenv('TEST_GUILD_ID')
@@ -26,32 +27,62 @@ intents.guilds = True
 intents.messages = True
 
 bot = commands.Bot(command_prefix='k.', intents=intents, case_insensitive=True)
+bot.db = {}
+
+db_lock = asyncio.Lock()
+
+DEFAULTS = {
+    "np_list": [],
+    "noprefix_access": [],
+    "warnings": {},
+    "balances": {},
+    "last_work": {},
+}
 
 
-def load_data():
+async def load_data():
+    global bot
+    if mongo_db is None:
+        bot.db = DEFAULTS.copy()
+        print("[WARN] MONGO_URI not set — config is in-memory only")
+        return
+
+    doc = await mongo_db["config"].find_one({"_id": "config"})
+    if doc is not None:
+        doc.pop("_id", None)
+        db = DEFAULTS.copy()
+        db.update(doc)
+        bot.db = db
+        print("[INFO] Config loaded from MongoDB")
+        return
+
+    # Migrate from data.json if it exists
     try:
         with open("data.json", "r") as f:
-            db = json.load(f)
+            legacy = json.load(f)
+        db = DEFAULTS.copy()
+        db.update({k: v for k, v in legacy.items() if k in DEFAULTS})
+        await mongo_db["config"].insert_one({"_id": "config", **db})
+        bot.db = db
+        print("[INFO] Migrated data.json → MongoDB")
+        os.remove("data.json")
+        print("[INFO] Removed data.json")
     except (FileNotFoundError, json.JSONDecodeError):
-        db = {}
-    if "np_list" not in db:
-        db["np_list"] = []
-    if "noprefix_access" not in db:
-        db["noprefix_access"] = []
-    if "warnings" not in db:
-        db["warnings"] = {}
-    if "balances" not in db:
-        db["balances"] = {}
-    if "last_work" not in db:
-        db["last_work"] = {}
-    return db
-
-bot.db = load_data()
+        db = DEFAULTS.copy()
+        await mongo_db["config"].insert_one({"_id": "config", **db})
+        bot.db = db
+        print("[INFO] Created fresh config in MongoDB")
 
 
-def save_data():
-    with open("data.json", "w") as f:
-        json.dump(bot.db, f, indent=4)
+async def save_data():
+    if mongo_db is None:
+        print("[WARN] Cannot save config — MONGO_URI not set")
+        return
+    async with db_lock:
+        await mongo_db["config"].update_one(
+            {"_id": "config"},
+            {"$set": bot.db}
+        )
 bot.save_data = save_data
 
 
@@ -77,28 +108,28 @@ async def on_tree_error(interaction: discord.Interaction, error: app_commands.Ap
             embed=discord.Embed(
                 title="⏳ [ COOLDOWN ACTIVE ]",
                 description=f"```yaml\nTry again in {error.retry_after:.1f}s\n```",
-                color=0xFFFF00), ephemeral=True)
+                color=COLOR), ephemeral=True)
 
     if isinstance(error, app_commands.MissingPermissions):
         return await interaction.response.send_message(
             embed=discord.Embed(
                 title="❌ [ ACCESS RESTRICTED ]",
                 description="```diff\n- ERROR: Permission denied.\n```",
-                color=0xFFFF00), ephemeral=True)
+                color=COLOR), ephemeral=True)
 
     if isinstance(error, app_commands.BotMissingPermissions):
         return await interaction.response.send_message(
             embed=discord.Embed(
                 title="❌ [ BOT PERMISSION ERROR ]",
                 description=f"```diff\n- ERROR: I need the following permissions: {', '.join(error.missing_permissions)}\n```",
-                color=0xFFFF00), ephemeral=True)
+                color=COLOR), ephemeral=True)
 
     if isinstance(error, app_commands.TransformerError):
         return await interaction.response.send_message(
             embed=discord.Embed(
                 title="❌ [ INVALID ARGUMENT ]",
                 description=f"```yaml\nERROR: Could not parse argument.\n```",
-                color=0xFFFF00), ephemeral=True)
+                color=COLOR), ephemeral=True)
 
     print(f"Unhandled tree error: {error}")
     try:
@@ -106,19 +137,20 @@ async def on_tree_error(interaction: discord.Interaction, error: app_commands.Ap
             embed=discord.Embed(
                 title="❌ [ OPERATIONAL ERROR ]",
                 description="```diff\n- ERROR: An unexpected error occurred.\n```",
-                color=0xFFFF00), ephemeral=True)
+                color=COLOR), ephemeral=True)
     except:
         pass
 
 
 async def setup_hook():
+    await load_data()
+    bot.mongo_db = mongo_db
     await bot.load_extension("owner")
     await bot.load_extension("fun")
     await bot.load_extension("utility")
     await bot.load_extension("moderation")
     await bot.load_extension("economy")
     await bot.load_extension("logger")
-    bot.mongo_db = mongo_db
 bot.setup_hook = setup_hook
 
 

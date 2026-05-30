@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import datetime
 import random
+from colors import COLOR
 
 # ── Shop (tools + consumables) ──
 SHOP_ITEMS = {
@@ -58,9 +59,6 @@ ITEM_POOLS = {
     "fishing_rod": {"basic": ["salmon", "cod", "trout"], "iron": ["tuna", "bass", "mackerel"], "gold": ["legendary_fish", "pearl", "treasure_map"]},
 }
 
-import random
-COLOR_YELLOW = 0xFFFF00
-
 
 class LeaderboardView(discord.ui.View):
     def __init__(self, top_users, bot):
@@ -85,7 +83,7 @@ class LeaderboardView(discord.ui.View):
                 f"**{idx + 1}.** <@{user['user_id']}> - {user['balance']} KioKreds"
                 for idx, user in enumerate(self.top_users[start:end], start=start)
             ),
-            color=COLOR_YELLOW)
+            color=COLOR)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await interaction.response.edit_message(embed=e, view=self)
@@ -96,7 +94,7 @@ class Economy(commands.Cog):
         self.bot = bot
 
     def embed(self, title, description):
-        e = discord.Embed(title=title, description=description, color=COLOR_YELLOW)
+        e = discord.Embed(title=title, description=description, color=COLOR)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         return e
@@ -206,12 +204,15 @@ class Economy(commands.Cog):
         items = profile.get("items", {})
         items[item_key] = items.get(item_key, 0) + quantity
 
-        # Small bonus KKD
         kkd = random.randint(5, 20)
-        new_balance = profile.get("balance", 0) + kkd
 
-        await self.update_profile(interaction.user.id,
-            update_data={"balance": new_balance, "inventory": inventory, "items": items})
+        if broken:
+            await self.update_profile(interaction.user.id,
+                inc_data={"balance": kkd, f"items.{item_key}": quantity},
+                update_data={f"inventory.{tool_type}": None})
+        else:
+            await self.update_profile(interaction.user.id,
+                inc_data={"balance": kkd, f"items.{item_key}": quantity, f"inventory.{tool_type}.durability": -dur_cost})
 
         lines = [
             f"EARNED: {kkd} KioKreds",
@@ -245,11 +246,10 @@ class Economy(commands.Cog):
                     f"```yaml\nNext shift available in {remaining}s.\nTOTAL BALANCE: {profile.get('balance', 0)} KioKreds\n```")
 
         earned = random.randint(10, 150)
-        new_balance = profile.get("balance", 0) + earned
-        work_count = profile.get("work_count", 0) + 1
 
         await self.update_profile(interaction.user.id,
-            update_data={"balance": new_balance, "last_work": now, "work_count": work_count})
+            inc_data={"balance": earned, "work_count": 1},
+            update_data={"last_work": now})
 
         await self.send(interaction, "💼 [ WORK SHIFT COMPLETED ]",
             f"```yaml\nEARNED: {earned} KioKreds\nTOTAL BALANCE: {new_balance} KioKreds\nWORK SHIFTS COMPLETED: {work_count}\n```")
@@ -257,14 +257,17 @@ class Economy(commands.Cog):
     # ── Gathering Commands ──
 
     @app_commands.command(name="mine", description="Mine with your pickaxe to find ores and gems")
+    @app_commands.checks.cooldown(1, 3, key=lambda i: i.user.id)
     async def mine(self, interaction: discord.Interaction):
         await self.use_tool(interaction, "pickaxe", "Mining", "⛏️")
 
     @app_commands.command(name="fish", description="Fish with your rod to catch fish and treasures")
+    @app_commands.checks.cooldown(1, 3, key=lambda i: i.user.id)
     async def fish(self, interaction: discord.Interaction):
         await self.use_tool(interaction, "fishing_rod", "Fishing", "🎣")
 
     @app_commands.command(name="harvest", description="Harvest with your hoe to gather crops")
+    @app_commands.checks.cooldown(1, 3, key=lambda i: i.user.id)
     async def harvest(self, interaction: discord.Interaction):
         await self.use_tool(interaction, "farming_tool", "Harvest", "🌾")
 
@@ -306,9 +309,10 @@ class Economy(commands.Cog):
                     f"```yaml\nNext daily available in {h}h {m}m.\n```")
 
         reward = 500
-        new_balance = profile.get("balance", 0) + reward
+
         await self.update_profile(interaction.user.id,
-            update_data={"balance": new_balance, "last_daily": now})
+            inc_data={"balance": reward},
+            update_data={"last_daily": now})
         await self.send(interaction, "🎁 [ DAILY REWARD CLAIMED ]",
             f"```yaml\nDAILY REWARD: {reward} KioKreds\nTOTAL BALANCE: {new_balance} KioKreds\n```")
 
@@ -331,7 +335,7 @@ class Economy(commands.Cog):
                 f"**{idx + 1}.** <@{user['user_id']}> - {user['balance']} KioKreds"
                 for idx, user in enumerate(top[:10])
             ),
-            color=COLOR_YELLOW)
+            color=COLOR)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await interaction.response.send_message(embed=e, view=LeaderboardView(top, self.bot))
@@ -449,8 +453,7 @@ class Economy(commands.Cog):
                 return await self.send(interaction, "❌ [ INSUFFICIENT BALANCE ]",
                     f"```yaml\nPrice: {price} KioKreds\nYour Balance: {balance} KioKreds\nShortfall: {price - balance} KioKreds\n```")
             await self.update_profile(interaction.user.id,
-                update_data={"balance": balance - price},
-                inc_data={"repair_kits": 1})
+                inc_data={"balance": -price, "repair_kits": 1})
             return await self.send(interaction, "✅ [ PURCHASE SUCCESSFUL ]",
                 f"```yaml\nItem: Repair Kit\nPrice: {price} KioKreds\nNew Balance: {balance - price} KioKreds\n```")
 
@@ -469,7 +472,8 @@ class Economy(commands.Cog):
 
         inv[tt] = {"name": item_data["name"], "durability": item_data["durability"]}
         await self.update_profile(interaction.user.id,
-            update_data={"balance": balance - price, "inventory": inv})
+            inc_data={"balance": -price},
+            update_data={"inventory": inv})
         await self.send(interaction, "✅ [ PURCHASE SUCCESSFUL ]",
             f"```yaml\nItem: {item_data['name']}\nPrice: {price} KioKreds\nNew Balance: {balance - price} KioKreds\nDurability: {item_data['durability']}\n```")
 
@@ -543,7 +547,7 @@ class Economy(commands.Cog):
                 return await self.send(interaction, "📭 [ NOTHING TO SELL ]", "```yaml\nERROR: No sellable items found.\n```")
 
             await self.update_profile(interaction.user.id,
-                update_data={"balance": balance + total, "items": items})
+                inc_data={"balance": total, **{f"items.{ik}": -qty for ik, qty in items.items() if qty > 0}})
             await self.send(interaction, "💰 [ BULK SALE COMPLETE ]",
                 f"```yaml\nTOTAL EARNED: {total} KioKreds\nNEW BALANCE: {balance + total} KioKreds\n```\n" + "\n".join(sold))
 
@@ -566,10 +570,9 @@ class Economy(commands.Cog):
 
             data = ITEMS[matched]
             value = data["sell"] * qty
-            items[matched] = 0
 
             await self.update_profile(interaction.user.id,
-                update_data={"balance": balance + value, "items": items})
+                inc_data={"balance": value, f"items.{matched}": -qty})
             await self.send(interaction, "💰 [ ITEM SOLD ]",
                 f"```yaml\nITEM: {qty}x {data['name']}\nEARNED: {value} KioKreds\nNEW BALANCE: {balance + value} KioKreds\n```")
 
@@ -592,15 +595,13 @@ class Economy(commands.Cog):
                 f"```yaml\nYour Balance: {balance} KioKreds\nBet Amount: {amount} KioKreds\n```")
 
         if random.random() < 0.5:
-            new_balance = balance + amount
-            await self.update_profile(interaction.user.id, update_data={"balance": new_balance})
+            await self.update_profile(interaction.user.id, inc_data={"balance": amount})
             await self.send(interaction, "🎲 [ GAMBLE — YOU WIN! ]",
-                f"```yaml\nBET: {amount} KioKreds\nRESULT: You doubled your bet!\nNEW BALANCE: {new_balance} KioKreds\n```")
+                f"```yaml\nBET: {amount} KioKreds\nRESULT: You doubled your bet!\nNEW BALANCE: {balance + amount} KioKreds\n```")
         else:
-            new_balance = balance - amount
-            await self.update_profile(interaction.user.id, update_data={"balance": new_balance})
+            await self.update_profile(interaction.user.id, inc_data={"balance": -amount})
             await self.send(interaction, "🎲 [ GAMBLE — YOU LOST ]",
-                f"```yaml\nBET: {amount} KioKreds\nRESULT: You lost the bet.\nNEW BALANCE: {new_balance} KioKreds\n```")
+                f"```yaml\nBET: {amount} KioKreds\nRESULT: You lost the bet.\nNEW BALANCE: {balance - amount} KioKreds\n```")
 
     # ── Rob ──
 
@@ -641,12 +642,12 @@ class Economy(commands.Cog):
 
         if random.random() < 0.4:
             stolen = random.randint(1, max_steal)
-            await self.update_profile(interaction.user.id, update_data={"balance": balance + stolen, "last_rob": now})
-            await self.update_profile(target.id, update_data={"balance": target_balance - stolen})
+            await self.update_profile(interaction.user.id, inc_data={"balance": stolen}, update_data={"last_rob": now})
+            await self.update_profile(target.id, inc_data={"balance": -stolen})
             await self.send(interaction, "🦹 [ ROBBERY SUCCESSFUL ]",
                 f"```yaml\nTARGET: {target.display_name}\nSTOLEN: {stolen} KioKreds\nYOUR BALANCE: {balance + stolen} KioKreds\n```")
         else:
-            await self.update_profile(interaction.user.id, update_data={"balance": balance - fine, "last_rob": now})
+            await self.update_profile(interaction.user.id, inc_data={"balance": -fine}, update_data={"last_rob": now})
             await self.send(interaction, "🚔 [ ROBBERY FAILED ]",
                 f"```yaml\nTARGET: {target.display_name}\nFINE PAID: {fine} KioKreds\nYOUR BALANCE: {balance - fine} KioKreds\n```")
 
@@ -671,7 +672,7 @@ class Economy(commands.Cog):
             return await self.send(interaction, "❌ [ INSUFFICIENT BALANCE ]",
                 f"```yaml\nYour Balance: {balance} KioKreds\nAmount: {amount} KioKreds\n```")
 
-        await self.update_profile(interaction.user.id, update_data={"balance": balance - amount})
+        await self.update_profile(interaction.user.id, inc_data={"balance": -amount})
         await self.update_profile(target.id, inc_data={"balance": amount})
         await self.send(interaction, "🎁 [ GIFT SENT ]",
             f"```yaml\nSENT: {amount} KioKreds\nTO: {target.display_name}\nYOUR BALANCE: {balance - amount} KioKreds\n```")

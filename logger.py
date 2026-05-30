@@ -2,8 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import datetime
-
-COLOR_YELLOW = 0xFFFF00
+from colors import COLOR
 
 
 class Logger(commands.Cog):
@@ -11,7 +10,7 @@ class Logger(commands.Cog):
         self.bot = bot
 
     def embed(self, title, description):
-        e = discord.Embed(title=title, description=description, color=COLOR_YELLOW)
+        e = discord.Embed(title=title, description=description, color=COLOR)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         return e
