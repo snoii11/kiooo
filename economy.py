@@ -196,7 +196,8 @@ class Economy(commands.Cog):
             dur_display = new_durability
 
         # Drop a collectible item
-        pool = ITEM_POOLS.get(tool_type, {}).get(quality.lower(), ["stone"])
+        quality_key = {"Golden": "gold", "Iron": "iron", "Basic": "basic"}.get(quality, "basic")
+        pool = ITEM_POOLS.get(tool_type, {}).get(quality_key, ["stone"])
         item_key = random.choice(pool)
         item_data = ITEMS[item_key]
         quantity = random.randint(1, 3)
