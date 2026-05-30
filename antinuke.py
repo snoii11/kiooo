@@ -65,13 +65,6 @@ class Antinuke(commands.Cog):
                 config["extra_owners"] = config.get("extra_owners") or []
                 config.setdefault("antinuke_role_id", None)
                 return config
-            if "trusted_roles" not in config:
-                config["trusted_roles"] = []
-            if "extra_owners" not in config:
-                config["extra_owners"] = []
-            if "antinuke_role_id" not in config:
-                config["antinuke_role_id"] = None
-            return config
         config = {
             "guild_id": guild_id,
             "enabled": False,
