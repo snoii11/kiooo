@@ -104,12 +104,12 @@ class Antinuke(commands.Cog):
             return True
         if user.id == self.bot.user.id:
             return True
-        if user.id in config.get("whitelist", []):
+        if user.id in (config.get("whitelist") or []):
             return True
-        if user.id in config.get("extra_owners", []):
+        if user.id in (config.get("extra_owners") or []):
             return True
         if isinstance(user, discord.Member):
-            trusted = config.get("trusted_roles", [])
+            trusted = config.get("trusted_roles") or []
             if any(r.id in trusted for r in user.roles):
                 return True
         return False
@@ -117,7 +117,7 @@ class Antinuke(commands.Cog):
     def is_authorized(self, interaction, config):
         if interaction.user.id == interaction.guild.owner_id:
             return True
-        if interaction.user.id in config.get("extra_owners", []):
+        if interaction.user.id in (config.get("extra_owners") or []):
             return True
         if interaction.user.guild_permissions.administrator:
             return True
@@ -403,7 +403,8 @@ class Antinuke(commands.Cog):
     @antinuke.command(name="toggle", description="Enable or disable antinuke protection")
     async def toggle(self, interaction: discord.Interaction, state: bool):
         config = await self.ensure_config(interaction.guild_id)
-        if interaction.user.id != interaction.guild.owner_id and interaction.user.id not in config.get("extra_owners", []):
+        extra_owners = config.get("extra_owners") or []
+        if interaction.user.id != interaction.guild.owner_id and interaction.user.id not in extra_owners:
             return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only the server owner and extra owners can toggle antinuke.\n```")
         if state:
             await interaction.response.defer()
@@ -466,7 +467,7 @@ class Antinuke(commands.Cog):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
             return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission or extra-owner status.\n```")
-        whitelist = config.get("whitelist", [])
+        whitelist = config.get("whitelist") or []
         if action == "add":
             if user.id in whitelist:
                 return await self.send(interaction, "❌ [ ALREADY WHITELISTED ]", "```diff\n- ERROR: That user is already whitelisted.\n```")
@@ -489,7 +490,7 @@ class Antinuke(commands.Cog):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
             return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission or extra-owner status.\n```")
-        trusted = config.get("trusted_roles", [])
+        trusted = config.get("trusted_roles") or []
         if action == "add":
             if role.id in trusted:
                 return await self.send(interaction, "❌ [ ALREADY TRUSTED ]", "```diff\n- ERROR: That role is already trusted.\n```")
@@ -512,7 +513,7 @@ class Antinuke(commands.Cog):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
             return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission or extra-owner status.\n```")
-        owners = config.get("extra_owners", [])
+        owners = config.get("extra_owners") or []
         if action == "add":
             if user.id in owners:
                 return await self.send(interaction, "❌ [ ALREADY EXTRA OWNER ]", "```diff\n- ERROR: That user is already an extra owner.\n```")
@@ -533,9 +534,9 @@ class Antinuke(commands.Cog):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
             return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission or extra-owner status.\n```")
-        whitelist_mentions = "\n".join(f"✦ <@{uid}>" for uid in config.get("whitelist", [])) or "None"
-        trusted_mentions = "\n".join(f"✦ <@&{rid}>" for rid in config.get("trusted_roles", [])) or "None"
-        extra_mentions = "\n".join(f"✦ <@{uid}>" for uid in config.get("extra_owners", [])) or "None"
+        whitelist_mentions = "\n".join(f"✦ <@{uid}>" for uid in (config.get("whitelist") or [])) or "None"
+        trusted_mentions = "\n".join(f"✦ <@&{rid}>" for rid in (config.get("trusted_roles") or [])) or "None"
+        extra_mentions = "\n".join(f"✦ <@{uid}>" for uid in (config.get("extra_owners") or [])) or "None"
         await self.send(interaction, "🛡️ [ ANTINUKE CONFIGURATION ]",
             f"```yaml\nENABLED: {config['enabled']}\nPUNISHMENT: {config['punishment']}\n\nTHRESHOLDS (per 5s):\n  Channel Create: {config['channel_create']}\n  Channel Delete: {config['channel_delete']}\n  Role Create: {config['role_create']}\n  Role Delete: {config['role_delete']}\n  Ban: {config['ban']}\n  Kick: {config['kick']}\n  Member Role Update: {config['member_role_update']}\n  Guild Update: {config['guild_update']}\n```\n**Extra Owners:**\n{extra_mentions}\n\n**Whitelisted Users:**\n{whitelist_mentions}\n\n**Trusted Roles:**\n{trusted_mentions}")
 
