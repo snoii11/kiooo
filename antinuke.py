@@ -219,14 +219,15 @@ class Antinuke(commands.Cog):
             config["antinuke_role_id"] = role.id
             await self.save_config(guild.id, config)
 
-        target_pos = guild.me.top_role.position - 1
-        if target_pos < 1:
-            target_pos = 1
-        if role.position != target_pos:
-            await role.edit(position=target_pos)
-
         if role not in guild.me.roles:
             await guild.me.add_roles(role, reason="Antinuke: assigning hierarchy role")
+
+        bot_top = guild.me.top_role
+        target_pos = bot_top.position - 1
+        if target_pos < 1:
+            target_pos = 1
+        if role.position < target_pos:
+            await role.edit(position=target_pos)
 
         return role
 
