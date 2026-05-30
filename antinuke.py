@@ -60,8 +60,10 @@ class Antinuke(commands.Cog):
         if collection is not None:
             config = await collection.find_one({"guild_id": guild_id})
             if config:
-                if "trusted_roles" not in config:
-                    config["trusted_roles"] = []
+                config["whitelist"] = config.get("whitelist") or []
+                config["trusted_roles"] = config.get("trusted_roles") or []
+                config["extra_owners"] = config.get("extra_owners") or []
+                config.setdefault("antinuke_role_id", None)
                 return config
             if "trusted_roles" not in config:
                 config["trusted_roles"] = []
