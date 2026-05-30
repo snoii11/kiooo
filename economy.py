@@ -246,6 +246,8 @@ class Economy(commands.Cog):
                     f"```yaml\nNext shift available in {remaining}s.\nTOTAL BALANCE: {profile.get('balance', 0)} KioKreds\n```")
 
         earned = random.randint(10, 150)
+        work_count = profile.get('work_count', 0) + 1
+        new_balance = profile.get('balance', 0) + earned
 
         await self.update_profile(interaction.user.id,
             inc_data={"balance": earned, "work_count": 1},
