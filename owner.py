@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import datetime
-from colors import COLOR
+from colors import COLOR, THUMBNAIL_URL
 
 own = 1491790586166902874
 
@@ -18,6 +18,7 @@ class ConfirmView(discord.ui.View):
             title="❖ [ SYSTEM SHUTDOWN CONFIRMED ] ❖",
             description="```ini\n[STATUS] Terminal shutdown command authorized.\n[ACTION] Terminating active processes and closing connection.\n```",
             color=COLOR)
+        e.set_thumbnail(url=THUMBNAIL_URL)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await interaction.response.send_message(embed=e)
@@ -30,6 +31,7 @@ class ConfirmView(discord.ui.View):
             title="❖ [ SHUTDOWN CANCELLED ] ❖",
             description="```ini\n[STATUS] Terminal shutdown aborted.\n[ACTION] Resuming normal operations.\n```",
             color=COLOR)
+        e.set_thumbnail(url=THUMBNAIL_URL)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await interaction.response.send_message(embed=e)
@@ -42,6 +44,7 @@ class Owner(commands.Cog):
 
     def embed(self, title, description):
         e = discord.Embed(title=title, description=description, color=COLOR)
+        e.set_thumbnail(url=THUMBNAIL_URL)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         return e
@@ -60,6 +63,7 @@ class Owner(commands.Cog):
             title="❖ [ SYSTEM SHUTDOWN PROMPT ] ❖",
             description="```yaml\nWARNING: You are about to initiate a terminal shutdown. This will disconnect the bot completely.\n```\n**Are you sure you want to proceed?**",
             color=COLOR)
+        e.set_thumbnail(url=THUMBNAIL_URL)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await interaction.response.send_message(embed=e, view=view)

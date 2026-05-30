@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import datetime
-from colors import COLOR
+from colors import COLOR, THUMBNAIL_URL
 
 
 class Logger(commands.Cog):
@@ -11,6 +11,7 @@ class Logger(commands.Cog):
 
     def embed(self, title, description):
         e = discord.Embed(title=title, description=description, color=COLOR)
+        e.set_thumbnail(url=THUMBNAIL_URL)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         return e

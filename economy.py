@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import datetime
 import random
-from colors import COLOR
+from colors import COLOR, THUMBNAIL_URL
 
 # ── Shop (tools + consumables) ──
 SHOP_ITEMS = {
@@ -84,6 +84,7 @@ class LeaderboardView(discord.ui.View):
                 for idx, user in enumerate(self.top_users[start:end], start=start)
             ),
             color=COLOR)
+        e.set_thumbnail(url=THUMBNAIL_URL)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await interaction.response.edit_message(embed=e, view=self)
@@ -95,6 +96,7 @@ class Economy(commands.Cog):
 
     def embed(self, title, description):
         e = discord.Embed(title=title, description=description, color=COLOR)
+        e.set_thumbnail(url=THUMBNAIL_URL)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         return e
@@ -339,6 +341,7 @@ class Economy(commands.Cog):
                 for idx, user in enumerate(top[:10])
             ),
             color=COLOR)
+        e.set_thumbnail(url=THUMBNAIL_URL)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         await interaction.response.send_message(embed=e, view=LeaderboardView(top, self.bot))

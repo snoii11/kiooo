@@ -8,7 +8,7 @@ import aiohttp
 from deep_translator import GoogleTranslator
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from colors import COLOR
+from colors import COLOR, THUMBNAIL_URL
 
 answers = [
     "Yes!", "No!", "Maybe...", "Definitely!",
@@ -55,6 +55,7 @@ class MemeView(discord.ui.View):
             async with session.get("https://meme-api.com/gimme") as r:
                 data = await r.json()
                 e = discord.Embed(title=data["title"], color=COLOR)
+                e.set_thumbnail(url=THUMBNAIL_URL)
                 e.set_image(url=data["url"])
                 e.set_footer(text=f"👍 {data['ups']} | r/{data['subreddit']}")
                 await interaction.response.edit_message(embed=e)
@@ -66,6 +67,7 @@ class Fun(commands.Cog):
 
     def embed(self, title, description, color=COLOR):
         e = discord.Embed(title=title, description=description, color=color)
+        e.set_thumbnail(url=THUMBNAIL_URL)
         e.set_footer(text="Kiooo", icon_url=self.bot.user.display_avatar.url)
         e.timestamp = datetime.datetime.now(datetime.timezone.utc)
         return e
@@ -92,6 +94,7 @@ class Fun(commands.Cog):
             async with session.get("https://meme-api.com/gimme") as r:
                 data = await r.json()
                 e = discord.Embed(title=data["title"], color=COLOR)
+                e.set_thumbnail(url=THUMBNAIL_URL)
                 e.set_image(url=data["url"])
                 e.set_footer(text=f"👍 {data['ups']} | r/{data['subreddit']}")
                 await interaction.followup.send(embed=e, view=MemeView())

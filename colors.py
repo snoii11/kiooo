@@ -1,1 +1,2 @@
 COLOR = 0x9B59B6
+THUMBNAIL_URL = "https://cdn.discordapp.com/attachments/1508521871606546443/1510371708098576595/kio.png?ex=6a1c92c4&is=6a1b4144&hm=c0eaddc3ee6446c53f2a70ce8b3208b03a8029a20e05d5b59a29992eac4acdbb"
