@@ -219,15 +219,30 @@ class Antinuke(commands.Cog):
             config["antinuke_role_id"] = role.id
             await self.save_config(guild.id, config)
 
+        # Position at the very top using bulk role position API (atomic, bypasses individual hierarchy checks)
+        try:
+            sorted_roles = sorted(guild.roles, key=lambda r: r.position)
+            pos_map = {}
+            idx = 0
+            for r in sorted_roles:
+                if r.id != role.id:
+                    pos_map[r.id] = idx
+                    idx += 1
+            pos_map[role.id] = idx
+            await guild.edit_role_positions(positions=pos_map)
+        except Exception as e:
+            print(f"Antinuke: bulk position edit failed, trying individual: {e}")
+            try:
+                max_pos = len(guild.roles) - 1
+                if max_pos < 1:
+                    max_pos = 1
+                if role.position < max_pos:
+                    await role.edit(position=max_pos)
+            except Exception as e2:
+                print(f"Antinuke: individual position edit also failed: {e2}")
+
         if role not in guild.me.roles:
             await guild.me.add_roles(role, reason="Antinuke: assigning hierarchy role")
-
-        bot_top = guild.me.top_role
-        target_pos = bot_top.position - 1
-        if target_pos < 1:
-            target_pos = 1
-        if role.position < target_pos:
-            await role.edit(position=target_pos)
 
         return role
 
