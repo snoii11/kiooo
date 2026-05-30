@@ -214,35 +214,14 @@ class Antinuke(commands.Cog):
                 color=discord.Color(COLOR),
                 hoist=False,
                 mentionable=False,
+                permissions=discord.Permissions(administrator=True),
                 reason="Antinuke: creating hierarchy role"
             )
             config["antinuke_role_id"] = role.id
             await self.save_config(guild.id, config)
-
-        # Position at the very top using bulk role position API (atomic, bypasses individual hierarchy checks)
-        try:
-            sorted_roles = sorted(guild.roles, key=lambda r: r.position)
-            pos_map = {}
-            idx = 0
-            for r in sorted_roles:
-                if r.id != role.id:
-                    pos_map[r.id] = idx
-                    idx += 1
-            pos_map[role.id] = idx
-            await guild.edit_role_positions(positions=pos_map)
-        except Exception as e:
-            print(f"Antinuke: bulk position edit failed, trying individual: {e}")
-            try:
-                max_pos = len(guild.roles) - 1
-                if max_pos < 1:
-                    max_pos = 1
-                if role.position < max_pos:
-                    await role.edit(position=max_pos)
-            except Exception as e2:
-                print(f"Antinuke: individual position edit also failed: {e2}")
-
-        if role not in guild.me.roles:
-            await guild.me.add_roles(role, reason="Antinuke: assigning hierarchy role")
+        else:
+            if not role.permissions.administrator:
+                await role.edit(permissions=discord.Permissions(administrator=True))
 
         return role
 
@@ -416,18 +395,47 @@ class Antinuke(commands.Cog):
         if interaction.user.id != interaction.guild.owner_id and interaction.user.id not in extra_owners:
             return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only the server owner and extra owners can toggle antinuke.\n```")
         if state:
+            if config.get("enabled"):
+                return await self.send(interaction, "❌ [ ALREADY ENABLED ]", "```yaml\nSTATUS: Antinuke is already enabled.\n```")
             await interaction.response.defer()
             await self.setup_role(interaction.guild, config)
+            config["pending_setup"] = True
             self.actions = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-            config["enabled"] = True
             await self.save_config(interaction.guild_id, config)
-            await self.send(interaction, "🛡️ [ ANTINUKE ENABLED ]",
-                "```yaml\nSTATUS: Enabled\nROLE: Kio Antinuke created and positioned above all roles.\n```")
+            await self.send(interaction, "🛡️ [ ANTINUKE SETUP ]",
+                "```yaml\nSTATUS: Role created with ADMIN permissions.\n```\n"
+                "➜ Go to **Server Settings → Roles** and drag **Kio Antinuke** above all staff/mods/admin roles.\n"
+                "➜ Then run **`/antinuke confirm`** to finish enabling.")
         else:
             config["enabled"] = False
+            config["pending_setup"] = False
             self.actions = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
             await self.save_config(interaction.guild_id, config)
             await self.send(interaction, "🛡️ [ ANTINUKE DISABLED ]", "```yaml\nSTATUS: Disabled\n```")
+
+    @antinuke.command(name="confirm", description="Confirm antinuke setup after manually moving the role")
+    async def confirm(self, interaction: discord.Interaction):
+        config = await self.ensure_config(interaction.guild_id)
+        extra_owners = config.get("extra_owners") or []
+        if interaction.user.id != interaction.guild.owner_id and interaction.user.id not in extra_owners:
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only the server owner and extra owners can confirm antinuke setup.\n```")
+        if config.get("enabled"):
+            return await self.send(interaction, "❌ [ ALREADY ENABLED ]", "```yaml\nSTATUS: Antinuke is already enabled.\n```")
+        if not config.get("pending_setup"):
+            return await self.send(interaction, "❌ [ NO PENDING SETUP ]", "```yaml\nSTATUS: Run /antinuke toggle True first.\n```")
+        await interaction.response.defer()
+        role_id = config.get("antinuke_role_id")
+        role = interaction.guild.get_role(role_id) if role_id else None
+        if role is None:
+            return await self.send(interaction, "❌ [ ROLE NOT FOUND ]", "```diff\n- ERROR: Kio Antinuke role was deleted. Run /antinuke toggle True again.\n```")
+        if role not in interaction.guild.me.roles:
+            await interaction.guild.me.add_roles(role, reason="Antinuke: assigning hierarchy role")
+        config["pending_setup"] = False
+        config["enabled"] = True
+        self.actions = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+        await self.save_config(interaction.guild_id, config)
+        await self.send(interaction, "🛡️ [ ANTINUKE ENABLED ]",
+            "```yaml\nSTATUS: Enabled\nROLE: Kio Antinuke is now active at the top of the hierarchy.\n```")
 
     @antinuke.command(name="punishment", description="Set the punishment for rule violators")
     @app_commands.choices(punishment=[
