@@ -151,6 +151,7 @@ async def setup_hook():
     await bot.load_extension("moderation")
     await bot.load_extension("economy")
     await bot.load_extension("logger")
+    await bot.load_extension("antinuke")
 bot.setup_hook = setup_hook
 
 
