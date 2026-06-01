@@ -160,17 +160,21 @@ class Antinuke(commands.Cog):
         punishments.insert(0, chosen)
         applied = None
         reason = f"Antinuke: {action_type} threshold exceeded"
+        member = guild.get_member(user.id)
         for p in punishments:
             try:
                 if p == "ban":
                     await guild.ban(user, reason=reason)
                 elif p == "striproles":
-                    if isinstance(user, discord.Member):
-                        await user.edit(roles=[], reason=reason)
+                    if member:
+                        await member.edit(roles=[], reason=reason)
                     else:
                         continue
                 else:
-                    await guild.kick(user, reason=reason)
+                    if member:
+                        await guild.kick(member, reason=reason)
+                    else:
+                        continue
                 applied = p
                 print(f"[ANTINUKE] Punishment applied: {p} to {user.id}")
                 break
