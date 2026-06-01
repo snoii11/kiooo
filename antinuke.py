@@ -115,8 +115,6 @@ class Antinuke(commands.Cog):
             return True
         if interaction.user.id in (config.get("extra_owners") or []):
             return True
-        if interaction.user.guild_permissions.administrator:
-            return True
         return False
 
     async def on_punish_cooldown(self, guild_id, user_id):
@@ -466,7 +464,7 @@ class Antinuke(commands.Cog):
     async def set_punishment(self, interaction: discord.Interaction, punishment: str):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         config["punishment"] = punishment
         await self.save_config(interaction.guild_id, config)
         await self.send(interaction, "🛡️ [ PUNISHMENT SET ]", f"```yaml\nPUNISHMENT: {punishment}\n```")
@@ -487,7 +485,7 @@ class Antinuke(commands.Cog):
     async def set_threshold(self, interaction: discord.Interaction, action: str, count: int):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         if count < 1:
             return await self.send(interaction, "❌ [ INVALID COUNT ]", "```diff\n- ERROR: Count must be at least 1.\n```")
         config[action] = count
@@ -502,7 +500,7 @@ class Antinuke(commands.Cog):
     async def whitelist(self, interaction: discord.Interaction, action: str, user: discord.User):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         whitelist = config.get("whitelist") or []
         if action == "add":
             if user.id in whitelist:
@@ -521,7 +519,7 @@ class Antinuke(commands.Cog):
     async def wlisted(self, interaction: discord.Interaction):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         whitelist = config.get("whitelist") or []
         if not whitelist:
             return await self.send(interaction, "📭 [ WHITELIST ]", "```yaml\nSTATUS: No whitelisted users.\n```")
@@ -533,7 +531,7 @@ class Antinuke(commands.Cog):
     async def unwhitelist(self, interaction: discord.Interaction, user: discord.User):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         whitelist = config.get("whitelist") or []
         if user.id not in whitelist:
             return await self.send(interaction, "❌ [ NOT WHITELISTED ]", "```diff\n- ERROR: That user is not whitelisted.\n```")
@@ -546,7 +544,7 @@ class Antinuke(commands.Cog):
     async def whitelistreset(self, interaction: discord.Interaction):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         config["whitelist"] = []
         await self.save_config(interaction.guild_id, config)
         await self.send(interaction, "🗑️ [ WHITELIST RESET ]", "```yaml\nSTATUS: All whitelisted users have been removed.\n```")
@@ -559,7 +557,7 @@ class Antinuke(commands.Cog):
     async def trustedrole(self, interaction: discord.Interaction, action: str, role: discord.Role):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         trusted = config.get("trusted_roles") or []
         if action == "add":
             if role.id in trusted:
@@ -580,9 +578,9 @@ class Antinuke(commands.Cog):
         app_commands.Choice(name="Remove", value="remove"),
     ])
     async def extraowner(self, interaction: discord.Interaction, action: str, user: discord.User):
+        if interaction.user.id != interaction.guild.owner_id:
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only the server owner can manage extra owners.\n```")
         config = await self.ensure_config(interaction.guild_id)
-        if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
         owners = config.get("extra_owners") or []
         if action == "add":
             if user.id in owners:
@@ -609,7 +607,7 @@ class Antinuke(commands.Cog):
     async def mainrole_add(self, interaction: discord.Interaction, role: discord.Role):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         main_roles = config.get("main_roles") or []
         if role.id in main_roles:
             return await self.send(interaction, "❌ [ ALREADY PROTECTED ]", "```diff\n- ERROR: That role is already a main role.\n```")
@@ -625,7 +623,7 @@ class Antinuke(commands.Cog):
     async def mainrole_remove(self, interaction: discord.Interaction, role: discord.Role):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         main_roles = config.get("main_roles") or []
         if role.id not in main_roles:
             return await self.send(interaction, "❌ [ NOT PROTECTED ]", "```diff\n- ERROR: That role is not a main role.\n```")
@@ -648,7 +646,7 @@ class Antinuke(commands.Cog):
     async def mainrole_reset(self, interaction: discord.Interaction):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         config["main_roles"] = []
         await self.save_config(interaction.guild_id, config)
         await self.send(interaction, "🗑️ [ MAIN ROLES RESET ]", "```yaml\nSTATUS: All main roles have been cleared.\n```")
@@ -659,7 +657,7 @@ class Antinuke(commands.Cog):
     async def nightmode(self, interaction: discord.Interaction):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         await interaction.response.defer()
 
         if config.get("nightmode"):
@@ -703,7 +701,7 @@ class Antinuke(commands.Cog):
     async def view_config(self, interaction: discord.Interaction):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         whitelist_mentions = "\n".join(f"✦ <@{uid}>" for uid in (config.get("whitelist") or [])) or "None"
         trusted_mentions = "\n".join(f"✦ <@&{rid}>" for rid in (config.get("trusted_roles") or [])) or "None"
         extra_mentions = "\n".join(f"✦ <@{uid}>" for uid in (config.get("extra_owners") or [])) or "None"
@@ -715,7 +713,7 @@ class Antinuke(commands.Cog):
     async def logchannel(self, interaction: discord.Interaction, channel: discord.TextChannel = None):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         config["punishment_log_channel"] = channel.id if channel else None
         await self.save_config(interaction.guild_id, config)
         await self.send(interaction, "🛡️ [ LOG CHANNEL SET ]",
@@ -725,7 +723,7 @@ class Antinuke(commands.Cog):
     async def lockdown(self, interaction: discord.Interaction):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         if interaction.guild_id in self.lockdowns:
             return await self.send(interaction, "❌ [ ALREADY LOCKED ]", "```diff\n- ERROR: Server is already in lockdown.\n```")
         await interaction.response.defer()
@@ -737,7 +735,7 @@ class Antinuke(commands.Cog):
     async def unlock(self, interaction: discord.Interaction):
         config = await self.ensure_config(interaction.guild_id)
         if not self.is_authorized(interaction, config):
-            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: You need Administrator permission.\n```")
+            return await self.send(interaction, "❌ [ ACCESS DENIED ]", "```diff\n- ERROR: Only server owner and extra owners.\n```")
         if interaction.guild_id not in self.lockdowns:
             return await self.send(interaction, "❌ [ NOT LOCKED ]", "```diff\n- ERROR: Server is not in lockdown.\n```")
         await interaction.response.defer()
