@@ -91,13 +91,16 @@ async def on_ready():
     print(f"{bot.user} is now online")
     print(f"Loaded Cogs: {bot.cogs}")
 
-    if test_guild:
-        bot.tree.copy_global_to(guild=test_guild)
-        await bot.tree.sync(guild=test_guild)
-        print(f"Synced commands to test guild {test_guild_id}")
-    else:
-        await bot.tree.sync()
-        print("Synced commands globally")
+    try:
+        if test_guild:
+            bot.tree.copy_global_to(guild=test_guild)
+            await bot.tree.sync(guild=test_guild)
+            print(f"Synced commands to test guild {test_guild_id}")
+        else:
+            await bot.tree.sync()
+            print("Synced commands globally")
+    except Exception as e:
+        print(f"[WARN] Command sync failed (rate-limited?): {e}")
 
 
 @bot.tree.error
