@@ -211,9 +211,12 @@ class Logger(commands.Cog):
             if removed:
                 changes.append(f"ROLES REMOVED: {', '.join(removed)}")
 
-        if before.timed_out != after.timed_out:
-            status = "Timed out" if after.timed_out else "Timeout removed"
-            changes.append(f"TIMEOUT: {status}")
+        try:
+            if before.timed_out != after.timed_out:
+                status = "Timed out" if after.timed_out else "Timeout removed"
+                changes.append(f"TIMEOUT: {status}")
+        except AttributeError:
+            pass
 
         if not changes:
             return
