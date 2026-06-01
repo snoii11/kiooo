@@ -56,7 +56,6 @@ async def load_data():
         print("[INFO] Config loaded from MongoDB")
         return
 
-    # Migrate from data.json if it exists
     try:
         with open("data.json", "r") as f:
             legacy = json.load(f)
@@ -142,6 +141,81 @@ async def on_tree_error(interaction: discord.Interaction, error: app_commands.Ap
         pass
 
 
+# ── AFK Detection ──
+
+@bot.event
+async def on_message(message):
+    if message.author.bot or not message.guild:
+        return
+
+    # Check blacklist
+    if mongo_db is not None:
+        blacklisted = await mongo_db["blacklist"].find_one({"user_id": message.author.id})
+        if blacklisted:
+            return
+
+    # AFK: remove AFK when user sends a message
+    afk_col = mongo_db["afk"] if mongo_db else None
+    if afk_col is not None:
+        result = await afk_col.delete_one({"guild_id": message.guild.id, "user_id": message.author.id})
+        if result.deleted_count:
+            try:
+                e = discord.Embed(
+                    title="🌙 [ WELCOME BACK ]",
+                    description="```yaml\nSTATUS: Your AFK status has been automatically removed.\n```",
+                    color=COLOR)
+                e.set_thumbnail(url=THUMBNAIL_URL)
+                await message.channel.send(embed=e, delete_after=5)
+            except:
+                pass
+
+    # AFK: notify if mentioning an AFK user
+    if afk_col is not None and message.mentions:
+        for mentioned in message.mentions:
+            if mentioned.bot:
+                continue
+            afk_data = await afk_col.find_one({"guild_id": message.guild.id, "user_id": mentioned.id})
+            if afk_data:
+                reason = afk_data.get("reason", "AFK")
+                try:
+                    e = discord.Embed(
+                        title="🌙 [ AFK NOTICE ]",
+                        description=f"```yaml\nUSER: {mentioned.display_name}\nREASON: {reason}\n```",
+                        color=COLOR)
+                    e.set_thumbnail(url=THUMBNAIL_URL)
+                    await message.channel.send(embed=e, delete_after=5)
+                except:
+                    pass
+
+    await bot.process_commands(message)
+
+
+# ── Boost Detection ──
+
+@bot.event
+async def on_member_update(before, after):
+    if before.premium_since is None and after.premium_since is not None:
+        if mongo_db is None:
+            return
+        boost_data = await mongo_db["boost"].find_one({"guild_id": after.guild.id})
+        if boost_data:
+            channel_id = boost_data.get("channel_id")
+            if channel_id:
+                channel = after.guild.get_channel(channel_id)
+                if channel:
+                    e = discord.Embed(
+                        title="⚡ [ BOOST DETECTED ]",
+                        description=f"```yaml\nUSER: {after} ({after.id})\nSTATUS: Thank you for boosting!\n```",
+                        color=COLOR)
+                    e.set_thumbnail(url=THUMBNAIL_URL)
+                    e.set_footer(text="Kiooo", icon_url=bot.user.display_avatar.url)
+                    e.timestamp = datetime.datetime.now(datetime.timezone.utc)
+                    try:
+                        await channel.send(embed=e)
+                    except:
+                        pass
+
+
 async def setup_hook():
     await load_data()
     bot.mongo_db = mongo_db
@@ -152,7 +226,7 @@ async def setup_hook():
     await bot.load_extension("economy")
     await bot.load_extension("logger")
     await bot.load_extension("antinuke")
+    await bot.load_extension("premium")
 bot.setup_hook = setup_hook
-
 
 bot.run(token)
