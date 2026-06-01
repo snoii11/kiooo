@@ -12,7 +12,7 @@ WINDOW = 5
 class Antinuke(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.actions = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+        self.actions = defaultdict(list)
         self.punish_cooldown = {}
         self.lockdowns = set()
 
@@ -67,16 +67,16 @@ class Antinuke(commands.Cog):
             "guild_id": guild_id,
             "enabled": False,
             "punishment": "kick",
-            "channel_create": 3,
-            "channel_delete": 3,
-            "role_create": 3,
-            "role_delete": 3,
-            "ban": 2,
-            "kick": 3,
-            "member_role_update": 5,
-            "guild_update": 2,
-            "webhook_create": 3,
-            "webhook_delete": 3,
+            "channel_create": 1,
+            "channel_delete": 1,
+            "role_create": 1,
+            "role_delete": 1,
+            "ban": 1,
+            "kick": 1,
+            "member_role_update": 1,
+            "guild_update": 1,
+            "webhook_create": 1,
+            "webhook_delete": 1,
             "whitelist": [],
             "trusted_roles": [],
             "extra_owners": [],
@@ -140,15 +140,19 @@ class Antinuke(commands.Cog):
             pass
 
     async def check_and_punish(self, guild, user, action_type, config):
+        print(f"[ANTINUKE] check_and_punish called — guild={guild.id} user={user.id} action={action_type}")
         now = datetime.datetime.now(datetime.timezone.utc).timestamp()
         key = (guild.id, user.id, action_type)
         self.actions[key].append(now)
         cutoff = now - WINDOW
         self.actions[key] = [t for t in self.actions[key] if t > cutoff]
         threshold = config.get(action_type, 5)
-        if len(self.actions[key]) < threshold:
+        count = len(self.actions[key])
+        print(f"[ANTINUKE] action count={count}/{threshold} for {action_type}")
+        if count < threshold:
             return
         if await self.on_punish_cooldown(guild.id, user.id):
+            print(f"[ANTINUKE] punish cooldown active for {user.id}")
             return
         punishments = ["ban", "striproles", "kick"]
         chosen = config.get("punishment", "kick")
@@ -161,12 +165,17 @@ class Antinuke(commands.Cog):
                 if p == "ban":
                     await guild.ban(user, reason=reason)
                 elif p == "striproles":
-                    await user.edit(roles=[], reason=reason)
+                    if isinstance(user, discord.Member):
+                        await user.edit(roles=[], reason=reason)
+                    else:
+                        continue
                 else:
                     await guild.kick(user, reason=reason)
                 applied = p
+                print(f"[ANTINUKE] Punishment applied: {p} to {user.id}")
                 break
-            except:
+            except Exception as ex:
+                print(f"[ANTINUKE] Punishment {p} failed for {user.id}: {ex}")
                 continue
         if applied is None:
             await self.lockdown_guild(guild)
@@ -236,7 +245,11 @@ class Antinuke(commands.Cog):
         if not config.get("enabled"):
             return
         user = await self.resolve_user(guild, discord.AuditLogAction.channel_create)
-        if not user or self.is_protected(config, guild, user):
+        if not user:
+            print(f"[ANTINUKE] on_guild_channel_create — could not resolve user from audit log")
+            return
+        if self.is_protected(config, guild, user):
+            print(f"[ANTINUKE] on_guild_channel_create — user {user.id} is protected")
             return
         await self.check_and_punish(guild, user, "channel_create", config)
 
@@ -249,7 +262,10 @@ class Antinuke(commands.Cog):
         if not config.get("enabled"):
             return
         user = await self.resolve_user(guild, discord.AuditLogAction.channel_delete)
-        if not user or self.is_protected(config, guild, user):
+        if not user:
+            print(f"[ANTINUKE] on_guild_channel_delete — could not resolve user")
+            return
+        if self.is_protected(config, guild, user):
             return
         await self.check_and_punish(guild, user, "channel_delete", config)
 
@@ -262,7 +278,10 @@ class Antinuke(commands.Cog):
         if not config.get("enabled"):
             return
         user = await self.resolve_user(guild, discord.AuditLogAction.role_create)
-        if not user or self.is_protected(config, guild, user):
+        if not user:
+            print(f"[ANTINUKE] on_guild_role_create — could not resolve user")
+            return
+        if self.is_protected(config, guild, user):
             return
         await self.check_and_punish(guild, user, "role_create", config)
 
@@ -275,7 +294,10 @@ class Antinuke(commands.Cog):
         if not config.get("enabled"):
             return
         user = await self.resolve_user(guild, discord.AuditLogAction.role_delete)
-        if not user or self.is_protected(config, guild, user):
+        if not user:
+            print(f"[ANTINUKE] on_guild_role_delete — could not resolve user")
+            return
+        if self.is_protected(config, guild, user):
             return
         await self.check_and_punish(guild, user, "role_delete", config)
 
@@ -395,7 +417,7 @@ class Antinuke(commands.Cog):
             await interaction.response.defer()
             await self.setup_role(interaction.guild, config)
             config["pending_setup"] = True
-            self.actions = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+            self.actions = defaultdict(list)
             await self.save_config(interaction.guild_id, config)
             await self.send(interaction, "🛡️ [ ANTINUKE SETUP ]",
                 "```yaml\nSTATUS: Role created with ADMIN permissions.\n```\n"
@@ -404,7 +426,7 @@ class Antinuke(commands.Cog):
         else:
             config["enabled"] = False
             config["pending_setup"] = False
-            self.actions = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+            self.actions = defaultdict(list)
             await self.save_config(interaction.guild_id, config)
             await self.send(interaction, "🛡️ [ ANTINUKE DISABLED ]", "```yaml\nSTATUS: Disabled\n```")
 
@@ -426,7 +448,7 @@ class Antinuke(commands.Cog):
             await interaction.guild.me.add_roles(role, reason="Antinuke: assigning hierarchy role")
         config["pending_setup"] = False
         config["enabled"] = True
-        self.actions = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+        self.actions = defaultdict(list)
         await self.save_config(interaction.guild_id, config)
         await self.send(interaction, "🛡️ [ ANTINUKE ENABLED ]",
             "```yaml\nSTATUS: Enabled\nROLE: Kio Antinuke is now active at the top of the hierarchy.\n```")
