@@ -316,10 +316,14 @@ class Logger(commands.Cog):
             return
 
         options = []
-        if interaction.data and interaction.data.options:
-            for opt in interaction.data.options:
-                if opt.value is not None:
-                    options.append(f"{opt.name}: {opt.value}")
+        data = interaction.data
+        if data:
+            opts = data.get("options", []) if isinstance(data, dict) else getattr(data, "options", [])
+            for opt in opts:
+                value = opt.get("value") if isinstance(opt, dict) else getattr(opt, "value", None)
+                name = opt.get("name") if isinstance(opt, dict) else getattr(opt, "name", "")
+                if value is not None:
+                    options.append(f"{name}: {value}")
 
         opt_text = f"\nOPTIONS: {', '.join(options)}" if options else ""
 

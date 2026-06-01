@@ -50,7 +50,11 @@ class Moderation(commands.Cog):
         return e
 
     async def send(self, interaction, title, description):
-        await interaction.response.send_message(embed=self.embed(title, description))
+        e = self.embed(title, description)
+        if interaction.response.is_done():
+            await interaction.followup.send(embed=e)
+        else:
+            await interaction.response.send_message(embed=e)
 
     def check_hierarchy(self, interaction, member):
         if member == interaction.user:
@@ -164,12 +168,13 @@ class Moderation(commands.Cog):
             return await self.send(interaction, "❌ [ OPERATIONAL FAILURE ]", "```diff\n- ERROR: Clear amount must be strictly greater than 0.\n```")
         if amount > 100:
             amount = 100
+        await interaction.response.defer()
         try:
             deleted = await interaction.channel.purge(limit=amount + 1)
             e = self.embed(
                 "🧹 [ ACTION LOG: CHANNEL PURGED ]",
                 f"```yaml\nCHANNEL: #{interaction.channel.name}\nACTION: Message stack deleted\nCOUNT: {len(deleted) - 1} messages cleared\n```")
-            await interaction.response.send_message(embed=e, delete_after=5)
+            await interaction.followup.send(embed=e, delete_after=5)
         except Exception as e:
             print(f"Error clearing messages: {e}")
             await self.send(interaction, "❌ [ OPERATIONAL ERROR ]", "```diff\n- ERROR: An error occurred while trying to clear messages.\n```")

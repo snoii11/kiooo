@@ -155,7 +155,7 @@ async def on_message(message):
             return
 
     # AFK: remove AFK when user sends a message
-    afk_col = mongo_db["afk"] if mongo_db else None
+    afk_col = mongo_db["afk"] if mongo_db is not None else None
     if afk_col is not None:
         result = await afk_col.delete_one({"guild_id": message.guild.id, "user_id": message.author.id})
         if result.deleted_count:
