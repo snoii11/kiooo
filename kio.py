@@ -88,6 +88,7 @@ bot.save_data = save_data
 @bot.event
 async def on_ready():
     bot.start_time = datetime.datetime.now(datetime.timezone.utc)
+    await bot.change_presence(activity=discord.Streaming(name="kiooo.xyz", url="https://twitch.tv/kiooo"))
     print(f"{bot.user} is now online")
     print(f"Loaded Cogs: {bot.cogs}")
 
